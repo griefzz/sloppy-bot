@@ -85,22 +85,13 @@ async def help_bot(ctx):
     embed = discord.Embed(title="🤖 Bot Commands Help", color=0x0099FF)
 
     embed.add_field(
-        name="/caption [url] [tone]",
-        value="Generate a caption for an image\n"
-        "• Attach an image or provide a URL\n"
-        "• Tones: accurate, creative, humorous\n"
-        "• Example: `/caption tone:creative`",
-        inline=False,
-    )
-
-    embed.add_field(
         name="/flux <text>",
         value="Generate an image using AI\n• Example: `/flux a cat wearing sunglasses`",
         inline=False,
     )
 
     embed.add_field(
-        name="/dflux <text>",
+        name="/dlux <text>",
         value="Generate multiple images using Flux AI\n• Example: `/dflux a serene mountain landscape`",
         inline=False,
     )
