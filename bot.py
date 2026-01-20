@@ -34,15 +34,45 @@ async def flux(ctx: commands.Context, *, text: str):
     """
     try:
         async with ctx.typing():
-            # API request
-            api_url = f"https://fast-flux-demo.replicate.workers.dev/api/generate-image?text={text}"
-            response = requests.get(api_url, timeout=30)
-            if response.status_code == 200:
-                # Load image from response
-                image_data = BytesIO(response.content)
-                image_data.seek(0)
-                # Send image as a reply
-                await ctx.reply(file=discord.File(image_data, "generated_image.webp"))
+            # API request to Replicate
+            api_url = (
+                "https://api.replicate.com/v1/models/prunaai/flux-fast/predictions"
+            )
+            headers = {
+                "Authorization": f"Bearer {settings.replicate_api_token}",
+                "Content-Type": "application/json",
+                "Prefer": "wait",
+            }
+            payload = {
+                "input": {
+                    "seed": -1,
+                    "prompt": text,
+                    "guidance": 3.5,
+                    "image_size": 1024,
+                    "speed_mode": "Extra Juiced 🔥 (more speed)",
+                    "aspect_ratio": "1:1",
+                    "output_format": "jpg",
+                    "output_quality": 80,
+                    "num_inference_steps": 28,
+                }
+            }
+            response = requests.post(api_url, headers=headers, json=payload, timeout=60)
+            if response.status_code in (200, 201):
+                result = response.json()
+                output_url = result.get("output")
+                if output_url:
+                    # Download the generated image
+                    image_response = requests.get(output_url, timeout=30)
+                    if image_response.status_code == 200:
+                        image_data = BytesIO(image_response.content)
+                        image_data.seek(0)
+                        await ctx.reply(
+                            file=discord.File(image_data, "generated_image.jpg")
+                        )
+                    else:
+                        await ctx.reply("❌ Failed to download generated image.")
+                else:
+                    await ctx.reply("❌ No image was generated. Please try again.")
             else:
                 await ctx.reply(
                     f"❌ Failed to generate image (Status: {response.status_code}). Please try again later."

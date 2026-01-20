@@ -8,6 +8,7 @@ class Settings:
 
     def __init__(self):
         self.discord_token = os.getenv("DISCORD_BOT_TOKEN")
+        self.replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
         self.command_prefix = os.getenv("COMMAND_PREFIX", "/")
 
     @property
