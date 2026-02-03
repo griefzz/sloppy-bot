@@ -47,9 +47,9 @@ async def flux(ctx: commands.Context, *, text: str):
                 "input": {
                     "seed": -1,
                     "prompt": text,
-                    "guidance": 10,
+                    "guidance": 8,
                     "image_size": 1024,
-                    "speed_mode": "Extra Juiced 🔥 (more speed)",
+                    "speed_mode": "Lightly Juiced 🍊 (more consistent)",
                     "aspect_ratio": "1:1",
                     "output_format": "jpg",
                     "output_quality": 80,
