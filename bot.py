@@ -47,7 +47,7 @@ async def flux(ctx: commands.Context, *, text: str):
                 "input": {
                     "seed": -1,
                     "prompt": text,
-                    "guidance": 3.5,
+                    "guidance": 10,
                     "image_size": 1024,
                     "speed_mode": "Extra Juiced 🔥 (more speed)",
                     "aspect_ratio": "1:1",
@@ -59,6 +59,7 @@ async def flux(ctx: commands.Context, *, text: str):
             response = requests.post(api_url, headers=headers, json=payload, timeout=60)
             if response.status_code in (200, 201):
                 result = response.json()
+                print("GOT: ", result)
                 output_url = result.get("output")
                 if output_url:
                     # Download the generated image
