@@ -35,14 +35,16 @@ async def flux(ctx: commands.Context, *, text: str):
                 },
                 wait=True,
             )
-            output_url = output.output
-            if output_url:
-                image_response = requests.get(output_url, timeout=30)
+            if output.status == "failed":
+                error_msg = output.error or "Unknown error"
+                await ctx.reply(f"❌ Generation failed: {error_msg}")
+            elif output.output:
+                image_response = requests.get(output.output, timeout=30)
                 image_data = BytesIO(image_response.content)
                 image_data.seek(0)
                 await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
             else:
-                await ctx.reply("❌ No image was generated. Please try again.")
+                await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
         await ctx.reply(f"❌ An error occurred: {e}")
 
@@ -78,14 +80,16 @@ async def nana(ctx: commands.Context, *, text: str):
                 input=model_input,
                 wait=True,
             )
-            output_url = output.output
-            if output_url:
-                image_response = requests.get(output_url, timeout=30)
+            if output.status == "failed":
+                error_msg = output.error or "Unknown error"
+                await ctx.reply(f"❌ Generation failed: {error_msg}")
+            elif output.output:
+                image_response = requests.get(output.output, timeout=30)
                 image_data = BytesIO(image_response.content)
                 image_data.seek(0)
                 await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
             else:
-                await ctx.reply("❌ No image was generated. Please try again.")
+                await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
         await ctx.reply(f"❌ An error occurred: {e}")
 
@@ -111,14 +115,16 @@ async def zimg(ctx: commands.Context, *, text: str):
                 },
                 wait=True,
             )
-            output_url = output.output
-            if output_url:
-                image_response = requests.get(output_url, timeout=30)
+            if output.status == "failed":
+                error_msg = output.error or "Unknown error"
+                await ctx.reply(f"❌ Generation failed: {error_msg}")
+            elif output.output:
+                image_response = requests.get(output.output, timeout=30)
                 image_data = BytesIO(image_response.content)
                 image_data.seek(0)
                 await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
             else:
-                await ctx.reply("❌ No image was generated. Please try again.")
+                await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
         await ctx.reply(f"❌ An error occurred: {e}")
 
