@@ -130,6 +130,52 @@ async def zimg(ctx: commands.Context, *, text: str):
 
 
 @bot.command()
+async def seed(ctx: commands.Context, *, text: str):
+    """Generate a video using Seedance 1 Lite.
+
+    Usage: /seed your video description here
+    Attach an image to use as the first frame.
+    """
+    try:
+        async with ctx.typing():
+            model_input = {
+                "prompt": text,
+                "duration": 5,
+                "resolution": "480p",
+                "aspect_ratio": "16:9",
+                "fps": 24,
+            }
+            image_attachments = [
+                a
+                for a in ctx.message.attachments
+                if a.content_type and a.content_type.startswith("image/")
+            ]
+            if image_attachments:
+                img_bytes = await image_attachments[0].read()
+                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                model_input["image"] = (
+                    f"data:{image_attachments[0].content_type};base64,{b64}"
+                )
+            output = replicate.models.predictions.create(
+                model="bytedance/seedance-1-lite",
+                input=model_input,
+                wait=True,
+            )
+            if output.status == "failed":
+                error_msg = output.error or "Unknown error"
+                await ctx.reply(f"❌ Generation failed: {error_msg}")
+            elif output.output:
+                video_response = requests.get(output.output, timeout=120)
+                video_data = BytesIO(video_response.content)
+                video_data.seek(0)
+                await ctx.reply(file=discord.File(video_data, "generated_video.mp4"))
+            else:
+                await ctx.reply(f"❌ No output returned. Status: {output.status}")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
 async def help_bot(ctx):
     """Show help information for the bot commands."""
     embed = discord.Embed(title="🤖 Bot Commands Help", color=0x0099FF)
@@ -149,6 +195,12 @@ async def help_bot(ctx):
     embed.add_field(
         name="/zimg <text>",
         value="Generate an image using Z-Image Turbo (1920x1080)\n• Example: `/zimg a mountain landscape`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/seed <text>",
+        value="Generate a 5s video using Seedance 1 Lite (480p)\n• Attach an image for image-to-video\n• Example: `/seed a dog running on the beach`",
         inline=False,
     )
 
