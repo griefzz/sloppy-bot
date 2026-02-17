@@ -51,16 +51,21 @@ async def banana(ctx: commands.Context, *, text: str):
     """Generate an image using Google Nano Banana (Gemini Flash).
 
     Usage: /banana your image description here
+    Attach images to use as reference input.
     """
     try:
         async with ctx.typing():
+            model_input = {
+                "prompt": text,
+                "aspect_ratio": "16:9",
+                "output_format": "jpg",
+            }
+            image_urls = [a.url for a in ctx.message.attachments if a.content_type and a.content_type.startswith("image/")]
+            if image_urls:
+                model_input["image_input"] = image_urls
             output = replicate.models.predictions.create(
                 model="google/nano-banana",
-                input={
-                    "prompt": text,
-                    "aspect_ratio": "16:9",
-                    "output_format": "jpg",
-                },
+                input=model_input,
                 wait=True,
             )
             output_url = output.output
@@ -87,10 +92,10 @@ async def zimg(ctx: commands.Context, *, text: str):
                 model="prunaai/z-image-turbo",
                 input={
                     "prompt": text,
-                    "width": 1920,
-                    "height": 1080,
+                    "width": 768,
+                    "height": 1024,
                     "guidance_scale": 0,
-                    "num_inference_steps": 9,
+                    "num_inference_steps": 8,
                     "output_format": "jpg",
                     "output_quality": 80,
                 },
