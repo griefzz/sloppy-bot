@@ -47,10 +47,10 @@ async def flux(ctx: commands.Context, *, text: str):
 
 
 @bot.command()
-async def banana(ctx: commands.Context, *, text: str):
+async def nana(ctx: commands.Context, *, text: str):
     """Generate an image using Google Nano Banana (Gemini Flash).
 
-    Usage: /banana your image description here
+    Usage: /nana your image description here
     Attach images to use as reference input.
     """
     try:
@@ -60,7 +60,11 @@ async def banana(ctx: commands.Context, *, text: str):
                 "aspect_ratio": "16:9",
                 "output_format": "jpg",
             }
-            image_urls = [a.url for a in ctx.message.attachments if a.content_type and a.content_type.startswith("image/")]
+            image_urls = [
+                a.url
+                for a in ctx.message.attachments
+                if a.content_type and a.content_type.startswith("image/")
+            ]
             if image_urls:
                 model_input["image_input"] = image_urls
             output = replicate.models.predictions.create(
@@ -125,8 +129,8 @@ async def help_bot(ctx):
     )
 
     embed.add_field(
-        name="/banana <text>",
-        value="Generate an image using Google Nano Banana (Gemini Flash)\n• Example: `/banana a tropical sunset`",
+        name="/nana <text>",
+        value="Generate an image using Google Nano Banana (Gemini Flash)\n• Example: `/nana a tropical sunset`",
         inline=False,
     )
 
