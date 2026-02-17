@@ -97,7 +97,7 @@ async def zimg(ctx: commands.Context, *, text: str):
                 input={
                     "prompt": text,
                     "width": 1920,
-                    "height": 1080,
+                    "height": 1088,
                     "guidance_scale": 0,
                     "num_inference_steps": 8,
                     "output_format": "jpg",
