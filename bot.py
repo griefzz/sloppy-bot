@@ -163,12 +163,14 @@ async def seed(ctx: commands.Context, *, text: str):
             )
             while prediction.status not in ("succeeded", "failed", "canceled"):
                 await asyncio.sleep(5)
-                prediction.reload()
+                await asyncio.to_thread(prediction.reload)
             if prediction.status == "failed":
                 error_msg = prediction.error or "Unknown error"
                 await ctx.reply(f"❌ Generation failed: {error_msg}")
             elif prediction.output:
-                video_response = requests.get(prediction.output, timeout=120)
+                video_response = await asyncio.to_thread(
+                    requests.get, prediction.output, timeout=120
+                )
                 video_data = BytesIO(video_response.content)
                 video_data.seek(0)
                 await ctx.reply(file=discord.File(video_data, "generated_video.mp4"))
