@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import discord
 from discord.ext import commands
@@ -156,21 +157,23 @@ async def seed(ctx: commands.Context, *, text: str):
                 model_input["image"] = (
                     f"data:{image_attachments[0].content_type};base64,{b64}"
                 )
-            output = replicate.models.predictions.create(
+            prediction = replicate.models.predictions.create(
                 model="bytedance/seedance-1-lite",
                 input=model_input,
-                wait=True,
             )
-            if output.status == "failed":
-                error_msg = output.error or "Unknown error"
+            while prediction.status not in ("succeeded", "failed", "canceled"):
+                await asyncio.sleep(5)
+                prediction.reload()
+            if prediction.status == "failed":
+                error_msg = prediction.error or "Unknown error"
                 await ctx.reply(f"❌ Generation failed: {error_msg}")
-            elif output.output:
-                video_response = requests.get(output.output, timeout=120)
+            elif prediction.output:
+                video_response = requests.get(prediction.output, timeout=120)
                 video_data = BytesIO(video_response.content)
                 video_data.seek(0)
                 await ctx.reply(file=discord.File(video_data, "generated_video.mp4"))
             else:
-                await ctx.reply(f"❌ No output returned. Status: {output.status}")
+                await ctx.reply(f"❌ No output returned. Status: {prediction.status}")
     except Exception as e:
         await ctx.reply(f"❌ An error occurred: {e}")
 
