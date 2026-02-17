@@ -1,3 +1,4 @@
+import base64
 import discord
 from discord.ext import commands
 import replicate
@@ -60,13 +61,18 @@ async def nana(ctx: commands.Context, *, text: str):
                 "aspect_ratio": "16:9",
                 "output_format": "jpg",
             }
-            image_urls = [
-                a.url
+            image_attachments = [
+                a
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("image/")
             ]
-            if image_urls:
-                model_input["image_input"] = image_urls
+            if image_attachments:
+                data_uris = []
+                for a in image_attachments:
+                    img_bytes = await a.read()
+                    b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    data_uris.append(f"data:{a.content_type};base64,{b64}")
+                model_input["image_input"] = data_uris
             output = replicate.models.predictions.create(
                 model="google/nano-banana",
                 input=model_input,
