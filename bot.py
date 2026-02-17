@@ -47,13 +47,87 @@ async def flux(ctx: commands.Context, *, text: str):
 
 
 @bot.command()
+async def banana(ctx: commands.Context, *, text: str):
+    """Generate an image using Google Nano Banana (Gemini Flash).
+
+    Usage: /banana your image description here
+    """
+    try:
+        async with ctx.typing():
+            output = replicate.models.predictions.create(
+                model="google/nano-banana",
+                input={
+                    "prompt": text,
+                    "aspect_ratio": "16:9",
+                    "output_format": "jpg",
+                },
+                wait=True,
+            )
+            output_url = output.output
+            if output_url:
+                image_response = requests.get(output_url, timeout=30)
+                image_data = BytesIO(image_response.content)
+                image_data.seek(0)
+                await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
+            else:
+                await ctx.reply("❌ No image was generated. Please try again.")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
+async def zimg(ctx: commands.Context, *, text: str):
+    """Generate an image using Z-Image Turbo.
+
+    Usage: /zimg your image description here
+    """
+    try:
+        async with ctx.typing():
+            output = replicate.models.predictions.create(
+                model="prunaai/z-image-turbo",
+                input={
+                    "prompt": text,
+                    "width": 1920,
+                    "height": 1080,
+                    "guidance_scale": 0,
+                    "num_inference_steps": 9,
+                    "output_format": "jpg",
+                    "output_quality": 80,
+                },
+                wait=True,
+            )
+            output_url = output.output
+            if output_url:
+                image_response = requests.get(output_url, timeout=30)
+                image_data = BytesIO(image_response.content)
+                image_data.seek(0)
+                await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
+            else:
+                await ctx.reply("❌ No image was generated. Please try again.")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
 async def help_bot(ctx):
     """Show help information for the bot commands."""
     embed = discord.Embed(title="🤖 Bot Commands Help", color=0x0099FF)
 
     embed.add_field(
         name="/flux <text>",
-        value="Generate an image using AI\n• Example: `/flux a cat wearing sunglasses`",
+        value="Generate an image using Flux Fast\n• Example: `/flux a cat wearing sunglasses`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/banana <text>",
+        value="Generate an image using Google Nano Banana (Gemini Flash)\n• Example: `/banana a tropical sunset`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/zimg <text>",
+        value="Generate an image using Z-Image Turbo (1920x1080)\n• Example: `/zimg a mountain landscape`",
         inline=False,
     )
 
