@@ -1,6 +1,8 @@
 """Configuration management for the bot."""
 
 import os
+from dotenv import load_dotenv
+from pathlib import Path
 
 
 class Settings:
@@ -24,6 +26,15 @@ class Settings:
                 "Please create a .env file or set the environment variable."
             )
 
+
+# Load environment variables from .env file if it exists
+try:
+    env_path = Path(__file__).parent / ".." / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"Loaded environment from {env_path}")
+except ImportError:
+    print("python-dotenv not installed. Using system environment variables.")
 
 # Global settings instance
 settings = Settings()
