@@ -137,47 +137,61 @@ async def seed(ctx: commands.Context, *, text: str):
     Usage: /seed your video description here
     Attach an image to use as the first frame.
     """
+    status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
     try:
-        async with ctx.typing():
-            model_input = {
-                "prompt": text,
-                "duration": 5,
-                "resolution": "480p",
-                "aspect_ratio": "16:9",
-                "fps": 24,
-            }
-            image_attachments = [
-                a
-                for a in ctx.message.attachments
-                if a.content_type and a.content_type.startswith("image/")
-            ]
-            if image_attachments:
-                img_bytes = await image_attachments[0].read()
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
-                model_input["image"] = (
-                    f"data:{image_attachments[0].content_type};base64,{b64}"
-                )
-            prediction = replicate.models.predictions.create(
-                model="bytedance/seedance-1-lite",
-                input=model_input,
+        model_input = {
+            "prompt": text,
+            "duration": 5,
+            "resolution": "480p",
+            "aspect_ratio": "16:9",
+            "fps": 24,
+        }
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if image_attachments:
+            img_bytes = await image_attachments[0].read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            model_input["image"] = (
+                f"data:{image_attachments[0].content_type};base64,{b64}"
             )
-            while prediction.status not in ("succeeded", "failed", "canceled"):
-                await asyncio.sleep(5)
-                await asyncio.to_thread(prediction.reload)
-            if prediction.status == "failed":
-                error_msg = prediction.error or "Unknown error"
-                await ctx.reply(f"❌ Generation failed: {error_msg}")
-            elif prediction.output:
-                video_response = await asyncio.to_thread(
-                    requests.get, prediction.output, timeout=120
+        prediction = await asyncio.to_thread(
+            replicate.models.predictions.create,
+            model="bytedance/seedance-1-lite",
+            input=model_input,
+        )
+        while prediction.status not in ("succeeded", "failed", "canceled"):
+            await asyncio.sleep(5)
+            await asyncio.to_thread(prediction.reload)
+        if prediction.status == "failed":
+            error_msg = prediction.error or "Unknown error"
+            await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
+        elif prediction.output:
+            video_response = await asyncio.to_thread(
+                requests.get, prediction.output, timeout=120
+            )
+            size_mb = len(video_response.content) / (1024 * 1024)
+            if size_mb > 25:
+                await status_msg.edit(
+                    content=f"🎬 Video ready ({size_mb:.1f}MB, too large to upload): {prediction.output}"
                 )
+            else:
                 video_data = BytesIO(video_response.content)
                 video_data.seek(0)
+                await status_msg.edit(content="🎬 Video generated!", attachments=[])
                 await ctx.reply(file=discord.File(video_data, "generated_video.mp4"))
-            else:
-                await ctx.reply(f"❌ No output returned. Status: {prediction.status}")
+        else:
+            await status_msg.edit(
+                content=f"❌ No output returned. Status: {prediction.status}"
+            )
     except Exception as e:
-        await ctx.reply(f"❌ An error occurred: {e}")
+        print(f"[seed] Error: {e}")
+        try:
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+        except Exception:
+            pass
 
 
 @bot.command()
