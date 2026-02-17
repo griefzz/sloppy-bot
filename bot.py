@@ -169,19 +169,7 @@ async def seed(ctx: commands.Context, *, text: str):
             error_msg = prediction.error or "Unknown error"
             await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
         elif prediction.output:
-            video_response = await asyncio.to_thread(
-                requests.get, prediction.output, timeout=120
-            )
-            size_mb = len(video_response.content) / (1024 * 1024)
-            if size_mb > 25:
-                await status_msg.edit(
-                    content=f"🎬 Video ready ({size_mb:.1f}MB, too large to upload): {prediction.output}"
-                )
-            else:
-                video_data = BytesIO(video_response.content)
-                video_data.seek(0)
-                await status_msg.edit(content="🎬 Video generated!", attachments=[])
-                await ctx.reply(file=discord.File(video_data, "generated_video.mp4"))
+            await status_msg.edit(content=prediction.output)
         else:
             await status_msg.edit(
                 content=f"❌ No output returned. Status: {prediction.status}"
