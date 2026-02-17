@@ -96,8 +96,8 @@ async def zimg(ctx: commands.Context, *, text: str):
                 model="prunaai/z-image-turbo",
                 input={
                     "prompt": text,
-                    "width": 768,
-                    "height": 1024,
+                    "width": 1024,
+                    "height": 768,
                     "guidance_scale": 0,
                     "num_inference_steps": 8,
                     "output_format": "jpg",
