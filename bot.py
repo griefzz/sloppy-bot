@@ -1,5 +1,8 @@
 import asyncio
 import base64
+import os
+import subprocess
+import sys
 import discord
 from discord.ext import commands
 import replicate
@@ -257,6 +260,34 @@ async def help_bot(ctx):
     embed.add_field(name="/help_bot", value="Show this help message", inline=False)
 
     await ctx.reply(embed=embed)
+
+
+@bot.command()
+async def update(ctx: commands.Context):
+    """Pull latest code from git and restart the bot.
+
+    Usage: /update
+    Only the bot owner can use this command.
+    """
+    status_msg = await ctx.reply("Pulling latest changes...")
+    try:
+        result = subprocess.run(
+            ["git", "pull"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        output = result.stdout.strip() or result.stderr.strip()
+        if "Already up to date" in (result.stdout or ""):
+            await status_msg.edit(content="Already up to date. No restart needed.")
+            return
+        await status_msg.edit(content=f"```\n{output}\n```\nRestarting...")
+    except Exception as e:
+        await status_msg.edit(content=f"Git pull failed: {e}")
+        return
+
+    await bot.close()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 @bot.event
