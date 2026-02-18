@@ -134,6 +134,46 @@ async def zimg(ctx: commands.Context, *, text: str):
 
 
 @bot.command()
+async def blip(ctx: commands.Context, *, text: str = ""):
+    """Caption an image or ask a question about it using BLIP.
+
+    Usage: /blip (attach an image for a caption)
+    Usage: /blip what color is the car? (attach an image for VQA)
+    """
+    try:
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if not image_attachments:
+            await ctx.reply("❌ Please attach an image.")
+            return
+        async with ctx.typing():
+            img_bytes = await image_attachments[0].read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
+            model_input = {"image": data_uri}
+            if text:
+                model_input["task"] = "visual_question_answering"
+                model_input["question"] = text
+            else:
+                model_input["task"] = "image_captioning"
+            output = await asyncio.to_thread(
+                replicate.run,
+                "salesforce/blip:2e1dddc8621f72155f24cf2e0adbde548458d3cab9f00c0139eea840d0ac4746",
+                input=model_input,
+            )
+            result = output if isinstance(output, str) else "".join(output)
+            if result:
+                await ctx.reply(result[:2000])
+            else:
+                await ctx.reply("❌ No output returned.")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
 async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
     """Caption an image using Moondream2.
 
@@ -242,6 +282,12 @@ async def help_bot(ctx):
     embed.add_field(
         name="/zimg <text>",
         value="Generate an image using Z-Image Turbo (1920x1080)\n• Example: `/zimg a mountain landscape`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/blip [question]",
+        value="Caption or ask about an attached image (BLIP)\n• Example: `/blip` or `/blip what color is the car?`",
         inline=False,
     )
 
