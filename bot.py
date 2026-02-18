@@ -209,7 +209,7 @@ async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
             )
             result = output if isinstance(output, str) else "".join(output)
             if result:
-                await ctx.reply(result[:2000])
+                await ctx.reply(result)
             else:
                 await ctx.reply("❌ No output returned.")
     except Exception as e:
