@@ -174,6 +174,49 @@ async def blip(ctx: commands.Context, *, text: str = ""):
 
 
 @bot.command()
+async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
+    """Ask a question about an image or video using Qwen3-VL.
+
+    Usage: /qwen (attach an image or video)
+    Usage: /qwen what is happening here? (attach an image or video)
+    """
+    try:
+        supported = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type
+            and (
+                a.content_type.startswith("image/")
+                or a.content_type.startswith("video/")
+            )
+        ]
+        if not supported:
+            await ctx.reply("❌ Please attach an image or video.")
+            return
+        async with ctx.typing():
+            attachment = supported[0]
+            file_bytes = await attachment.read()
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            data_uri = f"data:{attachment.content_type};base64,{b64}"
+            output = await asyncio.to_thread(
+                replicate.run,
+                "lucataco/qwen3-vl-8b-instruct",
+                input={
+                    "media": data_uri,
+                    "prompt": text,
+                    "max_new_tokens": 512,
+                },
+            )
+            result = output if isinstance(output, str) else "".join(output)
+            if result:
+                await ctx.reply(result[:2000])
+            else:
+                await ctx.reply("❌ No output returned.")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
 async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
     """Caption an image using Moondream2.
 
@@ -288,6 +331,12 @@ async def help_bot(ctx):
     embed.add_field(
         name="/blip [question]",
         value="Caption or ask about an attached image (BLIP)\n• Example: `/blip` or `/blip what color is the car?`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/qwen [question]",
+        value="Ask about an attached image or video (Qwen3-VL)\n• Example: `/qwen` or `/qwen what is happening here?`",
         inline=False,
     )
 
