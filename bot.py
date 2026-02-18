@@ -262,7 +262,6 @@ async def help_bot(ctx):
 @bot.event
 async def on_ready():
     print(f"{bot.user} has logged in!")
-    print("Bot is ready to caption images!")
 
 
 # Run the bot
