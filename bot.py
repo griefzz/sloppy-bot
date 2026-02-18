@@ -147,11 +147,14 @@ async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
             await ctx.reply("❌ Please attach an image to caption.")
             return
         async with ctx.typing():
+            img_bytes = await image_attachments[0].read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
             output = await asyncio.to_thread(
                 replicate.run,
                 "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31",
                 input={
-                    "image": image_attachments[0].url,
+                    "image": data_uri,
                     "prompt": text,
                 },
             )
