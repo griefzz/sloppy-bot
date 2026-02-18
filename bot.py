@@ -203,8 +203,8 @@ async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
                 "lucataco/qwen3-vl-8b-instruct:39e893666996acf464cff75688ad49ac95ef54e9f1c688fbc677330acc478e11",
                 input={
                     "media": data_uri,
-                    "prompt": text,
-                    "max_new_tokens": 512,
+                    "prompt": f"Be extremely concise and direct. No filler, no preamble, no disclaimers. Just answer. {text}",
+                    "max_new_tokens": 256,
                 },
             )
             result = output if isinstance(output, str) else "".join(output)
