@@ -150,22 +150,19 @@ async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
             img_bytes = await image_attachments[0].read()
             b64 = base64.b64encode(img_bytes).decode("utf-8")
             data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
-            output = replicate.models.predictions.create(
-                model="lucataco/moondream2",
+            output = await asyncio.to_thread(
+                replicate.run,
+                "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31",
                 input={
                     "image": data_uri,
                     "prompt": text,
                 },
-                wait=True,
             )
-            if output.status == "failed":
-                error_msg = output.error or "Unknown error"
-                await ctx.reply(f"❌ Caption failed: {error_msg}")
-            elif output.output:
-                result = "".join(output.output)
+            result = "".join(output)
+            if result:
                 await ctx.reply(result[:2000])
             else:
-                await ctx.reply(f"❌ No output returned. Status: {output.status}")
+                await ctx.reply("❌ No output returned.")
     except Exception as e:
         await ctx.reply(f"❌ An error occurred: {e}")
 
