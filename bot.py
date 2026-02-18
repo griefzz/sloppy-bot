@@ -200,7 +200,7 @@ async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
             data_uri = f"data:{attachment.content_type};base64,{b64}"
             output = await asyncio.to_thread(
                 replicate.run,
-                "lucataco/qwen3-vl-8b-instruct",
+                "lucataco/qwen3-vl-8b-instruct:39e893666996acf464cff75688ad49ac95ef54e9f1c688fbc677330acc478e11",
                 input={
                     "media": data_uri,
                     "prompt": text,
