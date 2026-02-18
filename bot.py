@@ -203,7 +203,7 @@ async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
                 "lucataco/qwen3-vl-8b-instruct:39e893666996acf464cff75688ad49ac95ef54e9f1c688fbc677330acc478e11",
                 input={
                     "media": data_uri,
-                    "prompt": f"Be extremely concise and direct. No filler, no preamble, no disclaimers. Just answer. {text}",
+                    "prompt": f"You are a video generation prompt writer. Analyze this image and write a detailed, vivid prompt that could be used to generate a video based on it. Describe the scene, subjects, actions, lighting, camera angle, mood, colors, and environment in explicit detail. Output ONLY the prompt text, nothing else. {text}",
                     "max_new_tokens": 256,
                 },
             )
