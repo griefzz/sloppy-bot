@@ -131,6 +131,46 @@ async def zimg(ctx: commands.Context, *, text: str):
 
 
 @bot.command()
+async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
+    """Caption an image using Moondream2.
+
+    Usage: /caption (attach an image)
+    Usage: /caption what color is the car? (attach an image)
+    """
+    try:
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if not image_attachments:
+            await ctx.reply("❌ Please attach an image to caption.")
+            return
+        async with ctx.typing():
+            img_bytes = await image_attachments[0].read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
+            output = replicate.models.predictions.create(
+                model="lucataco/moondream2",
+                input={
+                    "image": data_uri,
+                    "prompt": text,
+                },
+                wait=True,
+            )
+            if output.status == "failed":
+                error_msg = output.error or "Unknown error"
+                await ctx.reply(f"❌ Caption failed: {error_msg}")
+            elif output.output:
+                result = "".join(output.output)
+                await ctx.reply(result[:2000])
+            else:
+                await ctx.reply(f"❌ No output returned. Status: {output.status}")
+    except Exception as e:
+        await ctx.reply(f"❌ An error occurred: {e}")
+
+
+@bot.command()
 async def seed(ctx: commands.Context, *, text: str):
     """Generate a video using Seedance 1 Lite.
 
@@ -202,6 +242,12 @@ async def help_bot(ctx):
     embed.add_field(
         name="/zimg <text>",
         value="Generate an image using Z-Image Turbo (1920x1080)\n• Example: `/zimg a mountain landscape`",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="/caption [question]",
+        value="Caption or ask about an attached image (Moondream2)\n• Example: `/caption what is in this photo?`",
         inline=False,
     )
 
