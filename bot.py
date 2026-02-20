@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 import discord
-from discord import app_commands
 from discord.ext import commands
 import replicate
 import requests
@@ -17,10 +16,12 @@ intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 
-@bot.hybrid_command()
-@app_commands.describe(text="Image description")
+@bot.command()
 async def flux(ctx: commands.Context, *, text: str):
-    """Generate an image using Flux Fast."""
+    """Generate an image using Flux AI.
+
+    Usage: /flux your image description here
+    """
     try:
         async with ctx.typing():
             output = replicate.models.predictions.create(
@@ -52,10 +53,13 @@ async def flux(ctx: commands.Context, *, text: str):
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(text="Image description", image="Reference image (optional)")
-async def nana(ctx: commands.Context, image: discord.Attachment = None, *, text: str):
-    """Generate an image using Google Nano Banana (Gemini Flash)."""
+@bot.command()
+async def nana(ctx: commands.Context, *, text: str):
+    """Generate an image using Google Nano Banana (Gemini Flash).
+
+    Usage: /nana your image description here
+    Attach images to use as reference input.
+    """
     try:
         async with ctx.typing():
             model_input = {
@@ -63,15 +67,11 @@ async def nana(ctx: commands.Context, image: discord.Attachment = None, *, text:
                 "aspect_ratio": "16:9",
                 "output_format": "jpg",
             }
-            # Slash: use explicit param; Prefix: use all message attachments
-            if ctx.interaction:
-                image_attachments = [image] if image else []
-            else:
-                image_attachments = [
-                    a
-                    for a in ctx.message.attachments
-                    if a.content_type and a.content_type.startswith("image/")
-                ]
+            image_attachments = [
+                a
+                for a in ctx.message.attachments
+                if a.content_type and a.content_type.startswith("image/")
+            ]
             if image_attachments:
                 data_uris = []
                 for a in image_attachments:
@@ -98,10 +98,12 @@ async def nana(ctx: commands.Context, image: discord.Attachment = None, *, text:
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(text="Image description")
+@bot.command()
 async def zimg(ctx: commands.Context, *, text: str):
-    """Generate an image using Z-Image Turbo (1920x1080)."""
+    """Generate an image using Z-Image Turbo.
+
+    Usage: /zimg your image description here
+    """
     try:
         async with ctx.typing():
             output = replicate.models.predictions.create(
@@ -131,23 +133,26 @@ async def zimg(ctx: commands.Context, *, text: str):
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(
-    image="Image to analyze", text="Question about the image (optional)"
-)
-async def blip(
-    ctx: commands.Context, image: discord.Attachment = None, *, text: str = ""
-):
-    """Caption or ask about an image using BLIP."""
+@bot.command()
+async def blip(ctx: commands.Context, *, text: str = ""):
+    """Caption an image or ask a question about it using BLIP.
+
+    Usage: /blip (attach an image for a caption)
+    Usage: /blip what color is the car? (attach an image for VQA)
+    """
     try:
-        attachment = image
-        if attachment is None:
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if not image_attachments:
             await ctx.reply("❌ Please attach an image.")
             return
         async with ctx.typing():
-            img_bytes = await attachment.read()
+            img_bytes = await image_attachments[0].read()
             b64 = base64.b64encode(img_bytes).decode("utf-8")
-            data_uri = f"data:{attachment.content_type};base64,{b64}"
+            data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
             model_input = {"image": data_uri}
             if text:
                 model_input["task"] = "visual_question_answering"
@@ -168,38 +173,31 @@ async def blip(
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(
-    media="Image or video to analyze", text="Question or instruction (optional)"
-)
-async def qwen(
-    ctx: commands.Context,
-    media: discord.Attachment = None,
-    *,
-    text: str = "Describe this content.",
-):
-    """Generate a video prompt from an image using Qwen3-VL."""
+@bot.command()
+async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
+    """Ask a question about an image or video using Qwen3-VL.
+
+    Usage: /qwen (attach an image or video)
+    Usage: /qwen what is happening here? (attach an image or video)
+    """
     try:
-        if media is None:
-            # Fallback to message attachments for prefix commands
-            if ctx.message:
-                supported = [
-                    a
-                    for a in ctx.message.attachments
-                    if a.content_type
-                    and (
-                        a.content_type.startswith("image/")
-                        or a.content_type.startswith("video/")
-                    )
-                ]
-                media = supported[0] if supported else None
-        if media is None:
+        supported = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type
+            and (
+                a.content_type.startswith("image/")
+                or a.content_type.startswith("video/")
+            )
+        ]
+        if not supported:
             await ctx.reply("❌ Please attach an image or video.")
             return
         async with ctx.typing():
-            file_bytes = await media.read()
+            attachment = supported[0]
+            file_bytes = await attachment.read()
             b64 = base64.b64encode(file_bytes).decode("utf-8")
-            data_uri = f"data:{media.content_type};base64,{b64}"
+            data_uri = f"data:{attachment.content_type};base64,{b64}"
             output = await asyncio.to_thread(
                 replicate.run,
                 "lucataco/qwen3-vl-8b-instruct:39e893666996acf464cff75688ad49ac95ef54e9f1c688fbc677330acc478e11",
@@ -218,26 +216,26 @@ async def qwen(
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(
-    image="Image to caption", text="Question about the image (optional)"
-)
-async def caption(
-    ctx: commands.Context,
-    image: discord.Attachment = None,
-    *,
-    text: str = "Describe this image",
-):
-    """Caption or ask about an image using Moondream2."""
+@bot.command()
+async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
+    """Caption an image using Moondream2.
+
+    Usage: /caption (attach an image)
+    Usage: /caption what color is the car? (attach an image)
+    """
     try:
-        attachment = image
-        if attachment is None:
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if not image_attachments:
             await ctx.reply("❌ Please attach an image to caption.")
             return
         async with ctx.typing():
-            img_bytes = await attachment.read()
+            img_bytes = await image_attachments[0].read()
             b64 = base64.b64encode(img_bytes).decode("utf-8")
-            data_uri = f"data:{attachment.content_type};base64,{b64}"
+            data_uri = f"data:{image_attachments[0].content_type};base64,{b64}"
             output = await asyncio.to_thread(
                 replicate.run,
                 "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31",
@@ -255,20 +253,14 @@ async def caption(
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
-@app_commands.describe(
-    text="Video description",
-    image="First frame image (optional)",
-    last_image="Last frame image (optional)",
-)
-async def seed(
-    ctx: commands.Context,
-    image: discord.Attachment = None,
-    last_image: discord.Attachment = None,
-    *,
-    text: str,
-):
-    """Generate a 5s video using Seedance 1 Lite (480p)."""
+@bot.command()
+async def seed(ctx: commands.Context, *, text: str):
+    """Generate a video using Seedance 1 Lite.
+
+    Usage: /seed prompt (text-to-video)
+    Usage: /seed prompt + 1 image (image-to-video, first frame)
+    Usage: /seed prompt + 2 images (first + last frame)
+    """
     status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
     try:
         model_input = {
@@ -278,32 +270,29 @@ async def seed(
             "aspect_ratio": "16:9",
             "fps": 24,
         }
-        # Slash: use explicit params; Prefix: use message attachments
-        if ctx.interaction:
-            first = image
-            last = last_image
-        else:
-            msg_images = [
-                a
-                for a in ctx.message.attachments
-                if a.content_type and a.content_type.startswith("image/")
-            ]
-            first = msg_images[0] if len(msg_images) >= 1 else None
-            last = msg_images[1] if len(msg_images) >= 2 else None
-        if first:
-            img_bytes = await first.read()
+        image_attachments = [
+            a
+            for a in ctx.message.attachments
+            if a.content_type and a.content_type.startswith("image/")
+        ]
+        if image_attachments:
+            img_bytes = await image_attachments[0].read()
             b64 = base64.b64encode(img_bytes).decode("utf-8")
-            model_input["image"] = f"data:{first.content_type};base64,{b64}"
-        if last:
-            img_bytes = await last.read()
+            model_input["image"] = (
+                f"data:{image_attachments[0].content_type};base64,{b64}"
+            )
+        if len(image_attachments) >= 2:
+            img_bytes = await image_attachments[1].read()
             b64 = base64.b64encode(img_bytes).decode("utf-8")
-            model_input["last_frame_image"] = f"data:{last.content_type};base64,{b64}"
+            model_input["last_frame_image"] = (
+                f"data:{image_attachments[1].content_type};base64,{b64}"
+            )
         prediction = await asyncio.to_thread(
             replicate.models.predictions.create,
             model="bytedance/seedance-1-lite",
             input=model_input,
         )
-        print(f"[seed] Prediction created: {prediction.id}")
+        print(f"[seed2] Prediction created: {prediction.id}")
         elapsed = 0
         while prediction.status not in ("succeeded", "failed", "canceled"):
             await asyncio.sleep(5)
@@ -311,7 +300,7 @@ async def seed(
             prediction = await asyncio.to_thread(
                 replicate.predictions.get, prediction.id
             )
-            print(f"[seed] {elapsed}s - status: {prediction.status}")
+            print(f"[seed2] {elapsed}s - status: {prediction.status}")
             await status_msg.edit(
                 content=f"🎬 Generating video... ({elapsed}s, status: {prediction.status})"
             )
@@ -341,9 +330,9 @@ async def seed(
         await status_msg.edit(content=f"❌ An error occurred: {e}")
 
 
-@bot.hybrid_command()
+@bot.command()
 async def help_bot(ctx):
-    """Show help information for all bot commands."""
+    """Show help information for the bot commands."""
     embed = discord.Embed(title="🤖 Bot Commands Help", color=0x0099FF)
 
     embed.add_field(
@@ -353,8 +342,8 @@ async def help_bot(ctx):
     )
 
     embed.add_field(
-        name="/nana <text> [image]",
-        value="Generate an image using Google Nano Banana (Gemini Flash)\n• Attach reference images for guidance\n• Example: `/nana a tropical sunset`",
+        name="/nana <text>",
+        value="Generate an image using Google Nano Banana (Gemini Flash)\n• Example: `/nana a tropical sunset`",
         inline=False,
     )
 
@@ -365,26 +354,26 @@ async def help_bot(ctx):
     )
 
     embed.add_field(
-        name="/blip [image] [question]",
+        name="/blip [question]",
         value="Caption or ask about an attached image (BLIP)\n• Example: `/blip` or `/blip what color is the car?`",
         inline=False,
     )
 
     embed.add_field(
-        name="/qwen [media] [question]",
-        value="Generate a video prompt from an image/video (Qwen3-VL)\n• Example: `/qwen` or `/qwen what is happening here?`",
+        name="/qwen [question]",
+        value="Ask about an attached image or video (Qwen3-VL)\n• Example: `/qwen` or `/qwen what is happening here?`",
         inline=False,
     )
 
     embed.add_field(
-        name="/caption [image] [question]",
+        name="/caption [question]",
         value="Caption or ask about an attached image (Moondream2)\n• Example: `/caption what is in this photo?`",
         inline=False,
     )
 
     embed.add_field(
-        name="/seed <text> [image] [last_image]",
-        value="Generate a 5s video using Seedance 1 Lite (480p)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/seed a dog running on the beach`",
+        name="/seed <text>",
+        value="Generate a 5s video using Seedance 1 Lite (480p)\n• Attach an image for image-to-video\n• Example: `/seed a dog running on the beach`",
         inline=False,
     )
 
@@ -393,9 +382,13 @@ async def help_bot(ctx):
     await ctx.reply(embed=embed)
 
 
-@bot.hybrid_command()
+@bot.command()
 async def update(ctx: commands.Context):
-    """Pull latest code from git and restart the bot (owner only)."""
+    """Pull latest code from git and restart the bot.
+
+    Usage: /update
+    Only the bot owner can use this command.
+    """
     status_msg = await ctx.reply("Pulling latest changes...")
     try:
         result = subprocess.run(
@@ -419,8 +412,7 @@ async def update(ctx: commands.Context):
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    print(f"{bot.user} has logged in! Slash commands synced.")
+    print(f"{bot.user} has logged in!")
 
 
 # Run the bot
