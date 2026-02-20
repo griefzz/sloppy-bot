@@ -307,7 +307,7 @@ async def seed(ctx: commands.Context, *, text: str):
 
 @bot.command()
 async def seed2(ctx: commands.Context, *, text: str):
-    """Generate a video using Seedance 1 Lite. convert and upload as webm.
+    """Generate a video using Seedance 1 Lite.
 
     Usage: /seed2 prompt (text-to-video)
     Usage: /seed2 prompt + 1 image (image-to-video, first frame)
@@ -339,29 +339,23 @@ async def seed2(ctx: commands.Context, *, text: str):
             model_input["last_frame_image"] = (
                 f"data:{image_attachments[1].content_type};base64,{b64}"
             )
-        prediction = await asyncio.to_thread(
+        output = await asyncio.to_thread(
             replicate.models.predictions.create,
             model="bytedance/seedance-1-lite",
             input=model_input,
+            wait=True,
         )
-        while prediction.status not in ("succeeded", "failed", "canceled"):
-            await asyncio.sleep(5)
-            await asyncio.to_thread(prediction.reload)
-        if prediction.status == "failed":
-            error_msg = prediction.error or "Unknown error"
+        if output.status == "failed":
+            error_msg = output.error or "Unknown error"
             await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
-        elif prediction.output:
-            await status_msg.edit(content=prediction.output)
+        elif output.output:
+            await status_msg.edit(content=output.output)
         else:
             await status_msg.edit(
-                content=f"❌ No output returned. Status: {prediction.status}"
+                content=f"❌ No output returned. Status: {output.status}"
             )
     except Exception as e:
-        print(f"[seed2] Error: {e}")
-        try:
-            await status_msg.edit(content=f"❌ An error occurred: {e}")
-        except Exception:
-            pass
+        await status_msg.edit(content=f"❌ An error occurred: {e}")
 
 
 @bot.command()
