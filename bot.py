@@ -339,24 +339,31 @@ async def seed2(ctx: commands.Context, *, text: str):
             model_input["last_frame_image"] = (
                 f"data:{image_attachments[1].content_type};base64,{b64}"
             )
-        output = await asyncio.to_thread(
+        prediction = await asyncio.to_thread(
             replicate.models.predictions.create,
             model="bytedance/seedance-1-lite",
             input=model_input,
-            wait=True,
         )
-        if output.status == "failed":
-            error_msg = output.error or "Unknown error"
+        elapsed = 0
+        while prediction.status not in ("succeeded", "failed", "canceled"):
+            await asyncio.sleep(5)
+            elapsed += 5
+            await asyncio.to_thread(prediction.reload)
+            await status_msg.edit(
+                content=f"🎬 Generating video... ({elapsed}s, status: {prediction.status})"
+            )
+        if prediction.status == "failed":
+            error_msg = prediction.error or "Unknown error"
             await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
-        elif output.output:
+        elif prediction.output:
             await status_msg.edit(content="Downloading...")
             video_response = await asyncio.to_thread(
-                requests.get, output.output, timeout=120
+                requests.get, prediction.output, timeout=120
             )
             video_data = BytesIO(video_response.content)
             if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
                 await status_msg.edit(
-                    content=f"❌ File too large for Discord. URL:\n{output.output}"
+                    content=f"❌ File too large for Discord. URL:\n{prediction.output}"
                 )
                 return
             video_data.seek(0)
@@ -365,7 +372,7 @@ async def seed2(ctx: commands.Context, *, text: str):
             await status_msg.delete()
         else:
             await status_msg.edit(
-                content=f"❌ No output returned. Status: {output.status}"
+                content=f"❌ No output returned. Status: {prediction.status}"
             )
     except Exception as e:
         await status_msg.edit(content=f"❌ An error occurred: {e}")
