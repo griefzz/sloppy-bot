@@ -3,6 +3,7 @@ import base64
 import os
 import subprocess
 import sys
+import tempfile
 import discord
 from discord.ext import commands
 import replicate
@@ -307,19 +308,20 @@ async def seed(ctx: commands.Context, *, text: str):
 
 @bot.command()
 async def seed2(ctx: commands.Context, *, text: str):
-    """Generate a video with audio using Seedance 1.5 Pro.
+    """Generate a video using Seedance 1 Lite. convert and upload as webm.
 
-    Usage: /seed2 your video description here
-    Attach an image to use as the first frame.
+    Usage: /seed2 prompt (text-to-video)
+    Usage: /seed2 prompt + 1 image (image-to-video, first frame)
+    Usage: /seed2 prompt + 2 images (first + last frame)
     """
-    status_msg = await ctx.reply("🎬 Generating video with audio, this may take a few minutes...")
+    status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
     try:
         model_input = {
             "prompt": text,
             "duration": 5,
-            "resolution": "720p",
-            "ratio": "16:9",
-            "generate_audio": True,
+            "resolution": "480p",
+            "aspect_ratio": "16:9",
+            "fps": 24,
         }
         image_attachments = [
             a
@@ -332,9 +334,15 @@ async def seed2(ctx: commands.Context, *, text: str):
             model_input["image"] = (
                 f"data:{image_attachments[0].content_type};base64,{b64}"
             )
+        if len(image_attachments) >= 2:
+            img_bytes = await image_attachments[1].read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            model_input["last_frame_image"] = (
+                f"data:{image_attachments[1].content_type};base64,{b64}"
+            )
         prediction = await asyncio.to_thread(
             replicate.models.predictions.create,
-            model="bytedance/seedance-1.5-pro",
+            model="bytedance/seedance-1-lite",
             input=model_input,
         )
         while prediction.status not in ("succeeded", "failed", "canceled"):
@@ -344,7 +352,45 @@ async def seed2(ctx: commands.Context, *, text: str):
             error_msg = prediction.error or "Unknown error"
             await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
         elif prediction.output:
-            await status_msg.edit(content=prediction.output)
+            await status_msg.edit(content="Converting to webm...")
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                src_path = os.path.join(tmp_dir, "input.mp4")
+                dst_path = os.path.join(tmp_dir, "output.webm")
+                video_response = await asyncio.to_thread(
+                    requests.get, prediction.output, timeout=120
+                )
+                with open(src_path, "wb") as f:
+                    f.write(video_response.content)
+                proc = await asyncio.to_thread(
+                    subprocess.run,
+                    [
+                        "ffmpeg", "-i", src_path,
+                        "-c:v", "libvpx-vp9",
+                        "-crf", "30", "-b:v", "0",
+                        "-c:a", "libopus",
+                        "-y", dst_path,
+                    ],
+                    capture_output=True,
+                    timeout=120,
+                )
+                if proc.returncode != 0:
+                    await status_msg.edit(
+                        content=f"❌ ffmpeg failed: {proc.stderr.decode()[:500]}"
+                    )
+                    return
+                file_size = os.path.getsize(dst_path)
+                if file_size > 25 * 1024 * 1024:
+                    await status_msg.edit(
+                        content=f"❌ Converted file too large for Discord ({file_size // 1024 // 1024}MB). Here's the URL:\n{prediction.output}"
+                    )
+                    return
+                await status_msg.edit(
+                    content="Uploading...",
+                )
+                await ctx.reply(
+                    file=discord.File(dst_path, "video.webm")
+                )
+                await status_msg.delete()
         else:
             await status_msg.edit(
                 content=f"❌ No output returned. Status: {prediction.status}"
