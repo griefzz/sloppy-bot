@@ -3,7 +3,6 @@ import base64
 import os
 import subprocess
 import sys
-import tempfile
 import discord
 from discord.ext import commands
 import replicate
@@ -350,49 +349,20 @@ async def seed2(ctx: commands.Context, *, text: str):
             error_msg = output.error or "Unknown error"
             await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
         elif output.output:
-            await status_msg.edit(content="Converting to webm...")
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                src_path = os.path.join(tmp_dir, "input.mp4")
-                dst_path = os.path.join(tmp_dir, "output.webm")
-                video_response = await asyncio.to_thread(
-                    requests.get, output.output, timeout=120
+            await status_msg.edit(content="Downloading...")
+            video_response = await asyncio.to_thread(
+                requests.get, output.output, timeout=120
+            )
+            video_data = BytesIO(video_response.content)
+            if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
+                await status_msg.edit(
+                    content=f"❌ File too large for Discord. URL:\n{output.output}"
                 )
-                with open(src_path, "wb") as f:
-                    f.write(video_response.content)
-                proc = await asyncio.to_thread(
-                    subprocess.run,
-                    [
-                        "ffmpeg",
-                        "-i",
-                        src_path,
-                        "-c:v",
-                        "libvpx-vp9",
-                        "-crf",
-                        "30",
-                        "-b:v",
-                        "0",
-                        "-c:a",
-                        "libopus",
-                        "-y",
-                        dst_path,
-                    ],
-                    capture_output=True,
-                    timeout=120,
-                )
-                if proc.returncode != 0:
-                    await status_msg.edit(
-                        content=f"❌ ffmpeg failed: {proc.stderr.decode()[:500]}"
-                    )
-                    return
-                file_size = os.path.getsize(dst_path)
-                if file_size > 25 * 1024 * 1024:
-                    await status_msg.edit(
-                        content=f"❌ File too large for Discord ({file_size // 1024 // 1024}MB). URL:\n{output.output}"
-                    )
-                    return
-                await status_msg.edit(content="Uploading...")
-                await ctx.reply(file=discord.File(dst_path, "video.webm"))
-                await status_msg.delete()
+                return
+            video_data.seek(0)
+            await status_msg.edit(content="Uploading...")
+            await ctx.reply(file=discord.File(video_data, "video.mp4"))
+            await status_msg.delete()
         else:
             await status_msg.edit(
                 content=f"❌ No output returned. Status: {output.status}"
