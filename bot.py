@@ -344,11 +344,15 @@ async def seed2(ctx: commands.Context, *, text: str):
             model="bytedance/seedance-1-lite",
             input=model_input,
         )
+        print(f"[seed2] Prediction created: {prediction.id}")
         elapsed = 0
         while prediction.status not in ("succeeded", "failed", "canceled"):
             await asyncio.sleep(5)
             elapsed += 5
-            await asyncio.to_thread(prediction.reload)
+            prediction = await asyncio.to_thread(
+                replicate.predictions.get, prediction.id
+            )
+            print(f"[seed2] {elapsed}s - status: {prediction.status}")
             await status_msg.edit(
                 content=f"🎬 Generating video... ({elapsed}s, status: {prediction.status})"
             )
