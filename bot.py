@@ -257,61 +257,9 @@ async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
 async def seed(ctx: commands.Context, *, text: str):
     """Generate a video using Seedance 1 Lite.
 
-    Usage: /seed your video description here
-    Attach an image to use as the first frame.
-    """
-    status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
-    try:
-        model_input = {
-            "prompt": text,
-            "duration": 5,
-            "resolution": "480p",
-            "aspect_ratio": "16:9",
-            "fps": 24,
-        }
-        image_attachments = [
-            a
-            for a in ctx.message.attachments
-            if a.content_type and a.content_type.startswith("image/")
-        ]
-        if image_attachments:
-            img_bytes = await image_attachments[0].read()
-            b64 = base64.b64encode(img_bytes).decode("utf-8")
-            model_input["image"] = (
-                f"data:{image_attachments[0].content_type};base64,{b64}"
-            )
-        prediction = await asyncio.to_thread(
-            replicate.models.predictions.create,
-            model="bytedance/seedance-1-lite",
-            input=model_input,
-        )
-        while prediction.status not in ("succeeded", "failed", "canceled"):
-            await asyncio.sleep(5)
-            await asyncio.to_thread(prediction.reload)
-        if prediction.status == "failed":
-            error_msg = prediction.error or "Unknown error"
-            await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
-        elif prediction.output:
-            await status_msg.edit(content=prediction.output)
-        else:
-            await status_msg.edit(
-                content=f"❌ No output returned. Status: {prediction.status}"
-            )
-    except Exception as e:
-        print(f"[seed] Error: {e}")
-        try:
-            await status_msg.edit(content=f"❌ An error occurred: {e}")
-        except Exception:
-            pass
-
-
-@bot.command()
-async def seed2(ctx: commands.Context, *, text: str):
-    """Generate a video using Seedance 1 Lite.
-
-    Usage: /seed2 prompt (text-to-video)
-    Usage: /seed2 prompt + 1 image (image-to-video, first frame)
-    Usage: /seed2 prompt + 2 images (first + last frame)
+    Usage: /seed prompt (text-to-video)
+    Usage: /seed prompt + 1 image (image-to-video, first frame)
+    Usage: /seed prompt + 2 images (first + last frame)
     """
     status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
     try:
@@ -426,12 +374,6 @@ async def help_bot(ctx):
     embed.add_field(
         name="/seed <text>",
         value="Generate a 5s video using Seedance 1 Lite (480p)\n• Attach an image for image-to-video\n• Example: `/seed a dog running on the beach`",
-        inline=False,
-    )
-
-    embed.add_field(
-        name="/seed2 <text>",
-        value="Generate a 5s video with audio using Seedance 1.5 Pro (720p)\n• Attach an image for image-to-video\n• Example: `/seed2 a waterfall in a forest with birds chirping`",
         inline=False,
     )
 
