@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import collections
+import datetime
 import os
 import subprocess
 import sys
@@ -14,6 +16,20 @@ from config.settings import settings
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="/", intents=intents)
+
+# In-memory error log (last 50 errors, cleared on restart)
+error_log: collections.deque = collections.deque(maxlen=50)
+
+
+def log_error(command: str, error: Exception, ctx: commands.Context, user_input: str = ""):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    user = str(ctx.author) if ctx else "unknown"
+    entry = f"[{timestamp}] /{command} | user: {user}"
+    if user_input:
+        entry += f" | input: {user_input[:80]}"
+    entry += f"\n  {type(error).__name__}: {error}"
+    error_log.append(entry)
+    print(f"[error] {entry}")
 
 
 @bot.command()
@@ -50,6 +66,7 @@ async def flux(ctx: commands.Context, *, text: str):
             else:
                 await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
+        log_error("flux", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -95,6 +112,7 @@ async def nana(ctx: commands.Context, *, text: str):
             else:
                 await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
+        log_error("nana", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -130,6 +148,7 @@ async def zimg(ctx: commands.Context, *, text: str):
             else:
                 await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
+        log_error("zimg", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -170,6 +189,7 @@ async def blip(ctx: commands.Context, *, text: str = ""):
             else:
                 await ctx.reply("❌ No output returned.")
     except Exception as e:
+        log_error("blip", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -213,6 +233,7 @@ async def qwen(ctx: commands.Context, *, text: str = "Describe this content."):
             else:
                 await ctx.reply("❌ No output returned.")
     except Exception as e:
+        log_error("qwen", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -250,6 +271,7 @@ async def caption(ctx: commands.Context, *, text: str = "Describe this image"):
             else:
                 await ctx.reply("❌ No output returned.")
     except Exception as e:
+        log_error("caption", e, ctx, text)
         await ctx.reply(f"❌ An error occurred: {e}")
 
 
@@ -327,6 +349,7 @@ async def seed(ctx: commands.Context, *, text: str):
                 content=f"❌ No output returned. Status: {prediction.status}"
             )
     except Exception as e:
+        log_error("seed", e, ctx, text)
         await status_msg.edit(content=f"❌ An error occurred: {e}")
 
 
@@ -377,9 +400,29 @@ async def help_bot(ctx):
         inline=False,
     )
 
+    embed.add_field(name="/wtfhappen", value="Show recent error log", inline=False)
     embed.add_field(name="/help_bot", value="Show this help message", inline=False)
 
     await ctx.reply(embed=embed)
+
+
+@bot.command()
+async def wtfhappen(ctx: commands.Context):
+    """Show recent error log."""
+    if not error_log:
+        await ctx.reply("No errors logged since last restart.")
+        return
+    lines = list(error_log)
+    # Build output fitting within Discord's 2000 char limit
+    header = f"**Last {len(lines)} error(s) since restart:**\n```\n"
+    footer = "\n```"
+    body = ""
+    for entry in reversed(lines):
+        candidate = entry + "\n"
+        if len(header) + len(body) + len(candidate) + len(footer) > 1990:
+            break
+        body = candidate + body
+    await ctx.reply(f"{header}{body}{footer}")
 
 
 @bot.command()
