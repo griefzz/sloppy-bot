@@ -96,6 +96,51 @@ class Images(commands.Cog):
             await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
+    async def bignana(self, ctx: commands.Context, *, text: str):
+        """Generate an image using Google Nano Banana Pro.
+
+        Usage: /bignana your image description here
+        Attach images to use as reference input.
+        """
+        try:
+            async with ctx.typing():
+                model_input = {
+                    "prompt": text,
+                    "aspect_ratio": "16:9",
+                    "output_format": "jpg",
+                }
+                image_attachments = [
+                    a
+                    for a in ctx.message.attachments
+                    if a.content_type and a.content_type.startswith("image/")
+                ]
+                if image_attachments:
+                    data_uris = []
+                    for a in image_attachments:
+                        img_bytes = await a.read()
+                        b64 = base64.b64encode(img_bytes).decode("utf-8")
+                        data_uris.append(f"data:{a.content_type};base64,{b64}")
+                    model_input["image_input"] = data_uris
+                output = replicate.models.predictions.create(
+                    model="google/nano-banana-pro",
+                    input=model_input,
+                    wait=True,
+                )
+                if output.status == "failed":
+                    error_msg = output.error or "Unknown error"
+                    await ctx.reply(f"❌ Generation failed: {error_msg}")
+                elif output.output:
+                    image_response = requests.get(output.output, timeout=30)
+                    image_data = BytesIO(image_response.content)
+                    image_data.seek(0)
+                    await ctx.reply(file=discord.File(image_data, "generated_image.jpg"))
+                else:
+                    await ctx.reply(f"❌ No output returned. Status: {output.status}")
+        except Exception as e:
+            log_error("bignana", e, ctx, text)
+            await ctx.reply(f"❌ An error occurred: {e}")
+
+    @commands.command()
     async def zimg(self, ctx: commands.Context, *, text: str):
         """Generate an image using Z-Image Turbo.
 
