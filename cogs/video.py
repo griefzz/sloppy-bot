@@ -58,9 +58,14 @@ class Video(commands.Cog):
             while prediction.status not in ("succeeded", "failed", "canceled"):
                 await asyncio.sleep(5)
                 elapsed += 5
-                prediction = await asyncio.to_thread(
-                    replicate.predictions.get, prediction.id
-                )
+                try:
+                    prediction = await asyncio.wait_for(
+                        asyncio.to_thread(replicate.predictions.get, prediction.id),
+                        timeout=30.0,
+                    )
+                except asyncio.TimeoutError:
+                    print(f"[seed] {elapsed}s - poll hung, retrying...")
+                    continue
                 print(f"[seed] {elapsed}s - status: {prediction.status}")
                 await status_msg.edit(
                     content=f"🎬 Generating video... ({elapsed}s, status: {prediction.status})"
@@ -71,7 +76,7 @@ class Video(commands.Cog):
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 video_response = await asyncio.to_thread(
-                    requests.get, prediction.output, timeout=120
+                    requests.get, str(prediction.output), timeout=(10, 120)
                 )
                 video_data = BytesIO(video_response.content)
                 if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
