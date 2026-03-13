@@ -62,18 +62,21 @@ class Admin(commands.Cog):
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
     @commands.command()
-    async def gimmi(self, ctx: commands.Context):
-        """Re-post the most recent succeeded Replicate prediction.
+    async def gimmi(self, ctx: commands.Context, n: int = 0):
+        """Re-post the Nth most recent succeeded Replicate prediction.
 
-        Usage: /gimmi
+        Usage: /gimmi      (latest)
+               /gimmi 0    (latest)
+               /gimmi 1    (second latest)
         """
         try:
             async with ctx.typing():
                 page = await asyncio.to_thread(replicate.predictions.list)
-                prediction = next(
-                    (p for p in page if p.status == "succeeded" and p.output),
-                    None,
-                )
+                succeeded = [p for p in page if p.status == "succeeded" and p.output]
+                if n >= len(succeeded):
+                    await ctx.reply(f"Only {len(succeeded)} succeeded prediction(s) available.")
+                    return
+                prediction = succeeded[n]
                 if not prediction:
                     await ctx.reply("No recent succeeded predictions found.")
                     return
