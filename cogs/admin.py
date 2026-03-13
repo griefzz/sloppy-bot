@@ -62,7 +62,7 @@ class Admin(commands.Cog):
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
     @commands.command()
-    async def gimmi(self, ctx: commands.Context, n: int = 0):
+    async def gimmy(self, ctx: commands.Context, n: int = 0):
         """Re-post the Nth most recent succeeded Replicate prediction.
 
         Usage: /gimmi      (latest)
