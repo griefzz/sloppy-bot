@@ -165,7 +165,8 @@ class Video(commands.Cog):
                     return
                 audio_data.seek(0)
                 await status_msg.edit(content="Uploading...")
-                await ctx.reply(file=discord.File(audio_data, "audio.flac"))
+                filename = "video.mp4" if video_attachments else "audio.flac"
+                await ctx.reply(file=discord.File(audio_data, filename))
                 await status_msg.delete()
             else:
                 await status_msg.edit(
