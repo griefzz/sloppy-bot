@@ -97,5 +97,77 @@ class Video(commands.Cog):
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
 
+    @commands.command()
+    async def mmaudio(self, ctx: commands.Context, *, text: str = ""):
+        """Generate audio using MMAudio.
+
+        Usage: /mmaudio prompt (text-to-audio)
+        Usage: /mmaudio prompt + video attachment (video-to-audio)
+        """
+        status_msg = await ctx.reply("🎵 Generating audio, this may take a moment...")
+        try:
+            model_input = {
+                "prompt": text,
+                "negative_prompt": "music",
+                "duration": 8,
+                "num_steps": 25,
+                "cfg_strength": 4.5,
+            }
+            video_attachments = [
+                a
+                for a in ctx.message.attachments
+                if a.content_type and a.content_type.startswith("video/")
+            ]
+            if video_attachments:
+                model_input["video"] = video_attachments[0].url
+            prediction = await asyncio.to_thread(
+                replicate.models.predictions.create,
+                model="zsxkib/mmaudio",
+                input=model_input,
+            )
+            print(f"[mmaudio] Prediction created: {prediction.id}")
+            elapsed = 0
+            while prediction.status not in ("succeeded", "failed", "canceled"):
+                await asyncio.sleep(5)
+                elapsed += 5
+                try:
+                    prediction = await asyncio.wait_for(
+                        asyncio.to_thread(replicate.predictions.get, prediction.id),
+                        timeout=30.0,
+                    )
+                except asyncio.TimeoutError:
+                    print(f"[mmaudio] {elapsed}s - poll hung, retrying...")
+                    continue
+                print(f"[mmaudio] {elapsed}s - status: {prediction.status}")
+                await status_msg.edit(
+                    content=f"🎵 Generating audio... ({elapsed}s, status: {prediction.status})"
+                )
+            if prediction.status == "failed":
+                error_msg = prediction.error or "Unknown error"
+                await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
+            elif prediction.output:
+                await status_msg.edit(content="Downloading...")
+                audio_response = await asyncio.to_thread(
+                    requests.get, str(prediction.output), timeout=(10, 120)
+                )
+                audio_data = BytesIO(audio_response.content)
+                if audio_data.getbuffer().nbytes > 25 * 1024 * 1024:
+                    await status_msg.edit(
+                        content=f"❌ File too large for Discord. URL:\n{prediction.output}"
+                    )
+                    return
+                audio_data.seek(0)
+                await status_msg.edit(content="Uploading...")
+                await ctx.reply(file=discord.File(audio_data, "audio.flac"))
+                await status_msg.delete()
+            else:
+                await status_msg.edit(
+                    content=f"❌ No output returned. Status: {prediction.status}"
+                )
+        except Exception as e:
+            log_error("mmaudio", e, ctx, text)
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Video(bot))
