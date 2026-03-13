@@ -121,8 +121,8 @@ class Video(commands.Cog):
             if video_attachments:
                 model_input["video"] = video_attachments[0].url
             prediction = await asyncio.to_thread(
-                replicate.models.predictions.create,
-                model="zsxkib/mmaudio",
+                replicate.predictions.create,
+                version="62871fb59889b2d7c13777f08deb3b36bdff88f7e1d53a50ad7694548a41b484",
                 input=model_input,
             )
             print(f"[mmaudio] Prediction created: {prediction.id}")
