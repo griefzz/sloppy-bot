@@ -1,8 +1,13 @@
+import asyncio
 import os
 import subprocess
 import sys
+from io import BytesIO
+from urllib.parse import urlparse
 
 import discord
+import replicate
+import requests
 from discord.ext import commands
 
 import error_log as error_log_module
@@ -55,6 +60,42 @@ class Admin(commands.Cog):
 
         await self.bot.close()
         os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    @commands.command()
+    async def gimmi(self, ctx: commands.Context):
+        """Re-post the most recent succeeded Replicate prediction.
+
+        Usage: /gimmi
+        """
+        try:
+            async with ctx.typing():
+                page = await asyncio.to_thread(replicate.predictions.list)
+                prediction = next(
+                    (p for p in page if p.status == "succeeded" and p.output),
+                    None,
+                )
+                if not prediction:
+                    await ctx.reply("No recent succeeded predictions found.")
+                    return
+
+                url = str(prediction.output)
+                response = await asyncio.to_thread(
+                    requests.get, url, timeout=(10, 120)
+                )
+                content_type = response.headers.get("Content-Type", "")
+                ext = os.path.splitext(urlparse(url).path)[1] or (
+                    ".mp4" if "video" in content_type else
+                    ".flac" if "audio" in content_type else
+                    ".jpg"
+                )
+                data = BytesIO(response.content)
+                if data.getbuffer().nbytes > 25 * 1024 * 1024:
+                    await ctx.reply(f"File too large for Discord. URL:\n{url}")
+                    return
+                data.seek(0)
+                await ctx.reply(file=discord.File(data, f"output{ext}"))
+        except Exception as e:
+            await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
     async def help_bot(self, ctx: commands.Context):
