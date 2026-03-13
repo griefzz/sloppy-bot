@@ -118,6 +118,13 @@ class Video(commands.Cog):
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("video/")
             ]
+            if not video_attachments and ctx.message.reference:
+                ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                video_attachments = [
+                    a
+                    for a in ref.attachments
+                    if a.content_type and a.content_type.startswith("video/")
+                ]
             if video_attachments:
                 model_input["video"] = video_attachments[0].url
             prediction = await asyncio.to_thread(
