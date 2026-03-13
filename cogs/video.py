@@ -126,7 +126,10 @@ class Video(commands.Cog):
                     if a.content_type and a.content_type.startswith("video/")
                 ]
             if video_attachments:
-                model_input["video"] = video_attachments[0].url
+                vid = video_attachments[0]
+                vid_bytes = await vid.read()
+                b64 = base64.b64encode(vid_bytes).decode("utf-8")
+                model_input["video"] = f"data:{vid.content_type};base64,{b64}"
             prediction = await asyncio.to_thread(
                 replicate.predictions.create,
                 version="62871fb59889b2d7c13777f08deb3b36bdff88f7e1d53a50ad7694548a41b484",
