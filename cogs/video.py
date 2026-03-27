@@ -50,7 +50,7 @@ class Video(commands.Cog):
                 )
             prediction = await asyncio.to_thread(
                 replicate.models.predictions.create,
-                model="bytedance/seedance-1-lite",
+                model="bytedance/seedance-1-pro-fast",
                 input=model_input,
             )
             print(f"[seed] Prediction created: {prediction.id}")
