@@ -1,7 +1,10 @@
 import asyncio
 import base64
+from io import BytesIO
 
+import discord
 import replicate
+import requests
 from discord.ext import commands
 
 from error_log import log_error
@@ -52,42 +55,51 @@ class Vision(commands.Cog):
             await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
-    async def qwen(self, ctx: commands.Context, *, text: str = "Describe this content."):
-        """Ask a question about an image or video using Qwen3-VL.
+    async def qwen(self, ctx: commands.Context, *, text: str):
+        """Edit images using Qwen Image Edit Plus.
 
-        Usage: /qwen (attach an image or video)
-        Usage: /qwen what is happening here? (attach an image or video)
+        Usage: /qwen your editing instructions here
+        Attach 1-3 images to edit, or reply to a message with images.
         """
         try:
-            supported = [
+            image_attachments = [
                 a
                 for a in ctx.message.attachments
-                if a.content_type
-                and (
-                    a.content_type.startswith("image/")
-                    or a.content_type.startswith("video/")
-                )
+                if a.content_type and a.content_type.startswith("image/")
             ]
-            if not supported:
-                await ctx.reply("❌ Please attach an image or video.")
+            if not image_attachments and ctx.message.reference:
+                ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                image_attachments = [
+                    a
+                    for a in ref.attachments
+                    if a.content_type and a.content_type.startswith("image/")
+                ]
+            if not image_attachments:
+                await ctx.reply("❌ Attach at least one image to edit, or reply to a message with an image.")
                 return
             async with ctx.typing():
-                attachment = supported[0]
-                file_bytes = await attachment.read()
-                b64 = base64.b64encode(file_bytes).decode("utf-8")
-                data_uri = f"data:{attachment.content_type};base64,{b64}"
+                data_uris = []
+                for a in image_attachments[:3]:
+                    img_bytes = await a.read()
+                    b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    data_uris.append(f"data:{a.content_type};base64,{b64}")
                 output = await asyncio.to_thread(
                     replicate.run,
-                    "lucataco/qwen3-vl-8b-instruct:39e893666996acf464cff75688ad49ac95ef54e9f1c688fbc677330acc478e11",
+                    "qwen/qwen-image-edit-plus",
                     input={
-                        "media": data_uri,
-                        "prompt": f"You are a video generation prompt writer. Analyze this image and write a detailed, vivid prompt that could be used to generate a video based on it. Describe the scene, subjects, actions, lighting, camera angle, mood, colors, and environment in explicit detail. Output ONLY the prompt text, nothing else. {text}",
-                        "max_new_tokens": 256,
+                        "image": data_uris,
+                        "prompt": text,
+                        "output_format": "jpg",
+                        "aspect_ratio": "match_input_image",
+                        "disable_safety_checker": True,
                     },
                 )
-                result = output if isinstance(output, str) else "".join(output)
-                if result:
-                    await ctx.reply(result)
+                urls = output if isinstance(output, list) else [output]
+                if urls:
+                    img_response = requests.get(str(urls[0]), timeout=30)
+                    img_data = BytesIO(img_response.content)
+                    img_data.seek(0)
+                    await ctx.reply(file=discord.File(img_data, "edited_image.jpg"))
                 else:
                     await ctx.reply("❌ No output returned.")
         except Exception as e:
