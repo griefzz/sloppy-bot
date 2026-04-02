@@ -109,8 +109,15 @@ class Images(commands.Cog):
                     for a in ctx.message.attachments
                     if a.content_type and a.content_type.startswith("image/")
                 ]
+                if not image_attachments and ctx.message.reference:
+                    ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                    image_attachments = [
+                        a
+                        for a in ref.attachments
+                        if a.content_type and a.content_type.startswith("image/")
+                    ]
                 if not image_attachments:
-                    await ctx.reply("❌ Attach at least one image to edit.")
+                    await ctx.reply("❌ Attach at least one image to edit, or reply to a message with an image.")
                     return
                 data_uris = []
                 for a in image_attachments[:5]:
