@@ -22,7 +22,15 @@ class Video(commands.Cog):
         Usage: /seed prompt + 1 image (image-to-video, first frame)
         Usage: /seed prompt + 2 images (first + last frame)
         """
-        status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
+        direct_images = [a for a in ctx.message.attachments if a.content_type and a.content_type.startswith("image/")]
+        ref_images = []
+        ref_embeds = []
+        if ctx.message.reference:
+            ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            ref_images = [a for a in ref.attachments if a.content_type and a.content_type.startswith("image/")]
+            ref_embeds = [e for e in ref.embeds if e.image or e.thumbnail]
+        debug = f"direct={len(direct_images)} ref_attach={len(ref_images)} ref_embeds={len(ref_embeds)}"
+        status_msg = await ctx.reply(f"🎬 Generating video... ({debug})")
         try:
             model_input = {
                 "prompt": text,
@@ -49,6 +57,7 @@ class Video(commands.Cog):
                 model_input["image"] = (
                     f"data:{image_attachments[0].content_type};base64,{b64}"
                 )
+                print(f"[seed] Using image from attachment: {image_attachments[0].filename}")
             if len(image_attachments) >= 2:
                 img_bytes = await image_attachments[1].read()
                 b64 = base64.b64encode(img_bytes).decode("utf-8")
