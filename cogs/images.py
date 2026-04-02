@@ -96,34 +96,35 @@ class Images(commands.Cog):
             await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
-    async def bignana(self, ctx: commands.Context, *, text: str):
-        """Generate an image using Google Nano Banana Pro.
+    async def pimg(self, ctx: commands.Context, *, text: str):
+        """Edit images using P-Image-Edit.
 
-        Usage: /bignana your image description here
-        Attach images to use as reference input.
+        Usage: /pimg your editing instructions here
+        Attach 1-5 images to edit.
         """
         try:
             async with ctx.typing():
-                model_input = {
-                    "prompt": text,
-                    "aspect_ratio": "16:9",
-                    "output_format": "jpg",
-                }
                 image_attachments = [
                     a
                     for a in ctx.message.attachments
                     if a.content_type and a.content_type.startswith("image/")
                 ]
-                if image_attachments:
-                    data_uris = []
-                    for a in image_attachments:
-                        img_bytes = await a.read()
-                        b64 = base64.b64encode(img_bytes).decode("utf-8")
-                        data_uris.append(f"data:{a.content_type};base64,{b64}")
-                    model_input["image_input"] = data_uris
+                if not image_attachments:
+                    await ctx.reply("❌ Attach at least one image to edit.")
+                    return
+                data_uris = []
+                for a in image_attachments[:5]:
+                    img_bytes = await a.read()
+                    b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    data_uris.append(f"data:{a.content_type};base64,{b64}")
                 output = replicate.models.predictions.create(
-                    model="google/nano-banana-pro",
-                    input=model_input,
+                    model="prunaai/p-image-edit",
+                    input={
+                        "prompt": text,
+                        "images": data_uris,
+                        "aspect_ratio": "16:9",
+                        "disable_safety_checker": True,
+                    },
                     wait=True,
                 )
                 if output.status == "failed":
@@ -137,7 +138,7 @@ class Images(commands.Cog):
                 else:
                     await ctx.reply(f"❌ No output returned. Status: {output.status}")
         except Exception as e:
-            log_error("bignana", e, ctx, text)
+            log_error("pimg", e, ctx, text)
             await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
