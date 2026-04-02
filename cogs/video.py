@@ -36,6 +36,13 @@ class Video(commands.Cog):
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("image/")
             ]
+            if not image_attachments and ctx.message.reference:
+                ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                image_attachments = [
+                    a
+                    for a in ref.attachments
+                    if a.content_type and a.content_type.startswith("image/")
+                ]
             if image_attachments:
                 img_bytes = await image_attachments[0].read()
                 b64 = base64.b64encode(img_bytes).decode("utf-8")
