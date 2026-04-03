@@ -112,7 +112,7 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/nana <text>",
-            value="Generate an image using Google Nano Banana (Gemini Flash)\n• Example: `/nana a tropical sunset`",
+            value="Generate an image using Google Nano Banana (Gemini Flash)\n• Attach or reply with images for reference\n• Example: `/nana a tropical sunset`",
             inline=False,
         )
         embed.add_field(
@@ -121,23 +121,38 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
-            name="/blip [question]",
-            value="Caption or ask about an attached image (BLIP)\n• Example: `/blip` or `/blip what color is the car?`",
+            name="/pimg <text>",
+            value="Edit images using P-Image-Edit\n• Attach 1-5 images or reply to a message with an image\n• Example: `/pimg make the sky purple`",
             inline=False,
         )
         embed.add_field(
-            name="/qwen [question]",
-            value="Ask about an attached image or video (Qwen3-VL)\n• Example: `/qwen` or `/qwen what is happening here?`",
+            name="/qwen <text>",
+            value="Edit images using Qwen Image Edit Plus\n• Attach 1-3 images or reply to a message with an image\n• Example: `/qwen remove the background`",
+            inline=False,
+        )
+        embed.add_field(
+            name="/blip [question]",
+            value="Caption or ask about an image (BLIP)\n• Attach or reply with an image\n• Example: `/blip` or `/blip what color is the car?`",
             inline=False,
         )
         embed.add_field(
             name="/caption [question]",
-            value="Caption or ask about an attached image (Moondream2)\n• Example: `/caption what is in this photo?`",
+            value="Caption or ask about an image (Moondream2)\n• Attach or reply with an image\n• Example: `/caption what is in this photo?`",
             inline=False,
         )
         embed.add_field(
             name="/seed <text>",
-            value="Generate a 5s video using Seedance 1 Lite (480p)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/seed a dog running on the beach`",
+            value="Generate a 5s video using Seedance 1 Pro Fast (480p)\n• Attach/reply with 1 image for first frame, 2 for first+last\n• Example: `/seed a dog running on the beach`",
+            inline=False,
+        )
+        embed.add_field(
+            name="/mmaudio [text]",
+            value="Generate audio using MMAudio\n• Attach/reply with a video for video-to-audio\n• Example: `/mmaudio wind blowing through trees`",
+            inline=False,
+        )
+        embed.add_field(
+            name="/gimme [n]",
+            value="Re-post the Nth most recent Replicate output\n• Example: `/gimme` (latest) or `/gimme 2` (3rd latest)",
             inline=False,
         )
         embed.add_field(name="/wtfhappen", value="Show recent error log", inline=False)

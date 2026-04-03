@@ -1,5 +1,4 @@
 import asyncio
-import base64
 
 import discord
 import replicate
@@ -7,7 +6,29 @@ import requests
 from discord.ext import commands
 from io import BytesIO
 
+from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri
 from error_log import log_error
+
+
+async def poll_prediction(prediction, label: str, status_msg, emoji: str):
+    """Poll a Replicate prediction until it completes, updating the status message."""
+    elapsed = 0
+    while prediction.status not in ("succeeded", "failed", "canceled"):
+        await asyncio.sleep(5)
+        elapsed += 5
+        try:
+            prediction = await asyncio.wait_for(
+                asyncio.to_thread(replicate.predictions.get, prediction.id),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            print(f"[{label}] {elapsed}s - poll hung, retrying...")
+            continue
+        print(f"[{label}] {elapsed}s - status: {prediction.status}")
+        await status_msg.edit(
+            content=f"{emoji} Generating... ({elapsed}s, status: {prediction.status})"
+        )
+    return prediction
 
 
 class Video(commands.Cog):
@@ -16,7 +37,7 @@ class Video(commands.Cog):
 
     @commands.command()
     async def seed(self, ctx: commands.Context, *, text: str):
-        """Generate a video using Seedance 1 Lite.
+        """Generate a video using Seedance 1 Pro Fast.
 
         Usage: /seed prompt (text-to-video)
         Usage: /seed prompt + 1 image (image-to-video, first frame)
@@ -31,67 +52,22 @@ class Video(commands.Cog):
                 "aspect_ratio": "16:9",
                 "fps": 24,
             }
-            image_attachments = [
-                a
-                for a in ctx.message.attachments
-                if a.content_type and a.content_type.startswith("image/")
-            ]
-            embed_image_urls = []
-            if not image_attachments and ctx.message.reference:
-                ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                image_attachments = [
-                    a
-                    for a in ref.attachments
-                    if a.content_type and a.content_type.startswith("image/")
-                ]
-                if not image_attachments:
-                    embed_image_urls = [
-                        e.image.url or e.thumbnail.url
-                        for e in ref.embeds
-                        if e.image or e.thumbnail
-                    ]
-            if image_attachments:
-                img_bytes = await image_attachments[0].read()
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
-                model_input["image"] = (
-                    f"data:{image_attachments[0].content_type};base64,{b64}"
-                )
-            elif embed_image_urls:
-                img_response = requests.get(embed_image_urls[0], timeout=30)
-                b64 = base64.b64encode(img_response.content).decode("utf-8")
-                ct = img_response.headers.get("Content-Type", "image/jpeg")
-                model_input["image"] = f"data:{ct};base64,{b64}"
-            if len(image_attachments) >= 2:
-                img_bytes = await image_attachments[1].read()
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
-                model_input["last_frame_image"] = (
-                    f"data:{image_attachments[1].content_type};base64,{b64}"
-                )
+            attachments, embed_urls = await get_attachments(ctx, "image/")
+            if attachments:
+                model_input["image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             prediction = await asyncio.to_thread(
                 replicate.models.predictions.create,
                 model="bytedance/seedance-1-pro-fast",
                 input=model_input,
             )
             print(f"[seed] Prediction created: {prediction.id}")
-            elapsed = 0
-            while prediction.status not in ("succeeded", "failed", "canceled"):
-                await asyncio.sleep(5)
-                elapsed += 5
-                try:
-                    prediction = await asyncio.wait_for(
-                        asyncio.to_thread(replicate.predictions.get, prediction.id),
-                        timeout=30.0,
-                    )
-                except asyncio.TimeoutError:
-                    print(f"[seed] {elapsed}s - poll hung, retrying...")
-                    continue
-                print(f"[seed] {elapsed}s - status: {prediction.status}")
-                await status_msg.edit(
-                    content=f"🎬 Generating video... ({elapsed}s, status: {prediction.status})"
-                )
+            prediction = await poll_prediction(prediction, "seed", status_msg, "🎬")
             if prediction.status == "failed":
-                error_msg = prediction.error or "Unknown error"
-                await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
+                await status_msg.edit(content=f"❌ Generation failed: {prediction.error or 'Unknown error'}")
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 video_response = await asyncio.to_thread(
@@ -115,7 +91,6 @@ class Video(commands.Cog):
             log_error("seed", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
-
     @commands.command()
     async def mmaudio(self, ctx: commands.Context, *, text: str = ""):
         """Generate audio using MMAudio.
@@ -132,60 +107,20 @@ class Video(commands.Cog):
                 "num_steps": 25,
                 "cfg_strength": 4.5,
             }
-            video_attachments = [
-                a
-                for a in ctx.message.attachments
-                if a.content_type and a.content_type.startswith("video/")
-            ]
-            embed_video_urls = []
-            if not video_attachments and ctx.message.reference:
-                ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                video_attachments = [
-                    a
-                    for a in ref.attachments
-                    if a.content_type and a.content_type.startswith("video/")
-                ]
-                if not video_attachments:
-                    embed_video_urls = [
-                        e.video.url
-                        for e in ref.embeds
-                        if e.video
-                    ]
-            if video_attachments:
-                vid = video_attachments[0]
-                vid_bytes = await vid.read()
-                b64 = base64.b64encode(vid_bytes).decode("utf-8")
-                model_input["video"] = f"data:{vid.content_type};base64,{b64}"
-            elif embed_video_urls:
-                vid_response = requests.get(embed_video_urls[0], timeout=60)
-                b64 = base64.b64encode(vid_response.content).decode("utf-8")
-                ct = vid_response.headers.get("Content-Type", "video/mp4")
-                model_input["video"] = f"data:{ct};base64,{b64}"
+            attachments, embed_urls = await get_attachments(ctx, "video/")
+            if attachments:
+                model_input["video"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["video"] = url_to_data_uri(embed_urls[0], default_type="video/mp4", timeout=60)
             prediction = await asyncio.to_thread(
                 replicate.predictions.create,
                 version="62871fb59889b2d7c13777f08deb3b36bdff88f7e1d53a50ad7694548a41b484",
                 input=model_input,
             )
             print(f"[mmaudio] Prediction created: {prediction.id}")
-            elapsed = 0
-            while prediction.status not in ("succeeded", "failed", "canceled"):
-                await asyncio.sleep(5)
-                elapsed += 5
-                try:
-                    prediction = await asyncio.wait_for(
-                        asyncio.to_thread(replicate.predictions.get, prediction.id),
-                        timeout=30.0,
-                    )
-                except asyncio.TimeoutError:
-                    print(f"[mmaudio] {elapsed}s - poll hung, retrying...")
-                    continue
-                print(f"[mmaudio] {elapsed}s - status: {prediction.status}")
-                await status_msg.edit(
-                    content=f"🎵 Generating audio... ({elapsed}s, status: {prediction.status})"
-                )
+            prediction = await poll_prediction(prediction, "mmaudio", status_msg, "🎵")
             if prediction.status == "failed":
-                error_msg = prediction.error or "Unknown error"
-                await status_msg.edit(content=f"❌ Generation failed: {error_msg}")
+                await status_msg.edit(content=f"❌ Generation failed: {prediction.error or 'Unknown error'}")
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 audio_response = await asyncio.to_thread(
@@ -199,7 +134,7 @@ class Video(commands.Cog):
                     return
                 audio_data.seek(0)
                 await status_msg.edit(content="Uploading...")
-                filename = "video.mp4" if video_attachments else "audio.flac"
+                filename = "video.mp4" if attachments else "audio.flac"
                 await ctx.reply(file=discord.File(audio_data, filename))
                 await status_msg.delete()
             else:
