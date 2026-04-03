@@ -67,6 +67,7 @@ class Vision(commands.Cog):
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("image/")
             ]
+            embed_image_urls = []
             if not image_attachments and ctx.message.reference:
                 ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 image_attachments = [
@@ -74,11 +75,23 @@ class Vision(commands.Cog):
                     for a in ref.attachments
                     if a.content_type and a.content_type.startswith("image/")
                 ]
-            if not image_attachments:
+                if not image_attachments:
+                    embed_image_urls = [
+                        e.image.url or e.thumbnail.url
+                        for e in ref.embeds
+                        if e.image or e.thumbnail
+                    ]
+            if not image_attachments and not embed_image_urls:
                 await ctx.reply("❌ Attach at least one image to edit, or reply to a message with an image.")
                 return
             async with ctx.typing():
                 data_uris = []
+                if embed_image_urls:
+                    for url in embed_image_urls[:3]:
+                        img_response = requests.get(url, timeout=30)
+                        b64 = base64.b64encode(img_response.content).decode("utf-8")
+                        ct = img_response.headers.get("Content-Type", "image/jpeg")
+                        data_uris.append(f"data:{ct};base64,{b64}")
                 for a in image_attachments[:3]:
                     img_bytes = await a.read()
                     b64 = base64.b64encode(img_bytes).decode("utf-8")

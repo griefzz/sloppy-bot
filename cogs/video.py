@@ -22,15 +22,7 @@ class Video(commands.Cog):
         Usage: /seed prompt + 1 image (image-to-video, first frame)
         Usage: /seed prompt + 2 images (first + last frame)
         """
-        direct_images = [a for a in ctx.message.attachments if a.content_type and a.content_type.startswith("image/")]
-        ref_images = []
-        ref_embeds = []
-        if ctx.message.reference:
-            ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-            ref_images = [a for a in ref.attachments if a.content_type and a.content_type.startswith("image/")]
-            ref_embeds = [e for e in ref.embeds if e.image or e.thumbnail]
-        debug = f"direct={len(direct_images)} ref_attach={len(ref_images)} ref_embeds={len(ref_embeds)}"
-        status_msg = await ctx.reply(f"🎬 Generating video... ({debug})")
+        status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
         try:
             model_input = {
                 "prompt": text,
@@ -44,6 +36,7 @@ class Video(commands.Cog):
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("image/")
             ]
+            embed_image_urls = []
             if not image_attachments and ctx.message.reference:
                 ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 image_attachments = [
@@ -51,13 +44,23 @@ class Video(commands.Cog):
                     for a in ref.attachments
                     if a.content_type and a.content_type.startswith("image/")
                 ]
+                if not image_attachments:
+                    embed_image_urls = [
+                        e.image.url or e.thumbnail.url
+                        for e in ref.embeds
+                        if e.image or e.thumbnail
+                    ]
             if image_attachments:
                 img_bytes = await image_attachments[0].read()
                 b64 = base64.b64encode(img_bytes).decode("utf-8")
                 model_input["image"] = (
                     f"data:{image_attachments[0].content_type};base64,{b64}"
                 )
-                print(f"[seed] Using image from attachment: {image_attachments[0].filename}")
+            elif embed_image_urls:
+                img_response = requests.get(embed_image_urls[0], timeout=30)
+                b64 = base64.b64encode(img_response.content).decode("utf-8")
+                ct = img_response.headers.get("Content-Type", "image/jpeg")
+                model_input["image"] = f"data:{ct};base64,{b64}"
             if len(image_attachments) >= 2:
                 img_bytes = await image_attachments[1].read()
                 b64 = base64.b64encode(img_bytes).decode("utf-8")
@@ -134,6 +137,7 @@ class Video(commands.Cog):
                 for a in ctx.message.attachments
                 if a.content_type and a.content_type.startswith("video/")
             ]
+            embed_video_urls = []
             if not video_attachments and ctx.message.reference:
                 ref = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 video_attachments = [
@@ -141,11 +145,22 @@ class Video(commands.Cog):
                     for a in ref.attachments
                     if a.content_type and a.content_type.startswith("video/")
                 ]
+                if not video_attachments:
+                    embed_video_urls = [
+                        e.video.url
+                        for e in ref.embeds
+                        if e.video
+                    ]
             if video_attachments:
                 vid = video_attachments[0]
                 vid_bytes = await vid.read()
                 b64 = base64.b64encode(vid_bytes).decode("utf-8")
                 model_input["video"] = f"data:{vid.content_type};base64,{b64}"
+            elif embed_video_urls:
+                vid_response = requests.get(embed_video_urls[0], timeout=60)
+                b64 = base64.b64encode(vid_response.content).decode("utf-8")
+                ct = vid_response.headers.get("Content-Type", "video/mp4")
+                model_input["video"] = f"data:{ct};base64,{b64}"
             prediction = await asyncio.to_thread(
                 replicate.predictions.create,
                 version="62871fb59889b2d7c13777f08deb3b36bdff88f7e1d53a50ad7694548a41b484",
