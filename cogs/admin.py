@@ -5,13 +5,12 @@ import sys
 from io import BytesIO
 from urllib.parse import urlparse
 
-from cogs.utils import unwrap_output, poll_prediction
+from cogs.utils import unwrap_output
 
 import discord
 import replicate
 import requests
 from discord.ext import commands
-
 
 
 class Admin(commands.Cog):
@@ -85,115 +84,6 @@ class Admin(commands.Cog):
             await ctx.reply(f"❌ An error occurred: {e}")
 
     @commands.command()
-    async def cost(self, ctx: commands.Context, n: int = 5):
-        """Show cost and timing for recent Replicate predictions.
-
-        Usage: /cost      (last 5)
-               /cost 10   (last 10)
-        """
-        try:
-            async with ctx.typing():
-                page = await asyncio.to_thread(replicate.predictions.list)
-                predictions = list(page)[:n]
-                if not predictions:
-                    await ctx.reply("No recent predictions found.")
-                    return
-                lines = []
-                total_predict = 0.0
-                total_total = 0.0
-                for p in predictions:
-                    model = p.model or "unknown"
-                    status = p.status
-                    parts = [f"**{model}**", status]
-                    if p.metrics:
-                        pt = p.metrics.get("predict_time")
-                        tt = p.metrics.get("total_time")
-                        if pt:
-                            total_predict += pt
-                            parts.append(f"{pt:.1f}s predict")
-                        if tt:
-                            total_total += tt
-                            parts.append(f"{tt:.1f}s total")
-                    lines.append(" | ".join(parts))
-                msg = "\n".join(lines)
-                if total_predict > 0:
-                    msg += f"\n\n**Totals: {total_predict:.1f}s predict / {total_total:.1f}s total**"
-                await ctx.reply(msg[:2000])
-        except Exception as e:
-            await ctx.reply(f"❌ An error occurred: {e}")
-
-    @commands.command()
-    async def reroll(self, ctx: commands.Context):
-        """Re-run the most recent Replicate prediction with a new seed.
-
-        Usage: /reroll
-        """
-        status_msg = await ctx.reply("🎲 Re-rolling last prediction...")
-        try:
-            page = await asyncio.to_thread(replicate.predictions.list)
-            last = next(
-                (p for p in page if p.status == "succeeded" and p.input),
-                None,
-            )
-            if not last:
-                await status_msg.edit(content="❌ No recent succeeded predictions to re-roll.")
-                return
-
-            model_input = dict(last.input)
-            if "seed" in model_input:
-                model_input["seed"] = -1
-
-            model_name = last.model or "unknown"
-            version = last.version
-            if version:
-                vid = version.id if hasattr(version, "id") else str(version)
-            else:
-                vid = None
-
-            if vid:
-                prediction = await asyncio.to_thread(
-                    replicate.predictions.create,
-                    version=vid,
-                    input=model_input,
-                )
-            else:
-                prediction = await asyncio.to_thread(
-                    replicate.models.predictions.create,
-                    model=model_name,
-                    input=model_input,
-                )
-
-            prediction = await poll_prediction(prediction, "reroll", status_msg, "🎲")
-
-            if prediction.status == "failed":
-                await status_msg.edit(content=f"❌ Generation failed: {prediction.error or 'Unknown error'}")
-            elif prediction.output:
-                await status_msg.edit(content="Downloading...")
-                url = unwrap_output(prediction.output)
-                content_type = ""
-                response = await asyncio.to_thread(
-                    requests.get, url, timeout=(10, 120)
-                )
-                content_type = response.headers.get("Content-Type", "")
-                data = BytesIO(response.content)
-                if data.getbuffer().nbytes > 25 * 1024 * 1024:
-                    await status_msg.edit(content=f"❌ File too large for Discord. URL:\n{url}")
-                    return
-                data.seek(0)
-                ext = (
-                    ".mp4" if "video" in content_type else
-                    ".flac" if "audio" in content_type else
-                    ".jpg"
-                )
-                await status_msg.edit(content="Uploading...")
-                await ctx.reply(file=discord.File(data, f"reroll{ext}"))
-                await status_msg.delete()
-            else:
-                await status_msg.edit(content=f"❌ No output returned. Status: {prediction.status}")
-        except Exception as e:
-            await status_msg.edit(content=f"❌ An error occurred: {e}")
-
-    @commands.command()
     async def help_bot(self, ctx: commands.Context):
         """Show help information for the bot commands."""
         embed = discord.Embed(title="🤖 Bot Commands Help", color=0x0099FF)
@@ -246,16 +136,6 @@ class Admin(commands.Cog):
         embed.add_field(
             name="/gimme [n]",
             value="Re-post the Nth most recent Replicate output\n• Example: `/gimme` (latest) or `/gimme 2` (3rd latest)",
-            inline=False,
-        )
-        embed.add_field(
-            name="/reroll",
-            value="Re-run the last prediction with a new seed",
-            inline=False,
-        )
-        embed.add_field(
-            name="/cost [n]",
-            value="Show cost and timing for last N predictions\n• Example: `/cost` (last 5) or `/cost 10`",
             inline=False,
         )
         embed.add_field(name="/help_bot", value="Show this help message", inline=False)
