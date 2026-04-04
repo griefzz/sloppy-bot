@@ -98,6 +98,10 @@ class Admin(commands.Cog):
                 if not predictions:
                     await ctx.reply("No recent predictions found.")
                     return
+                # Debug: show raw fields of first prediction
+                p0 = predictions[0]
+                debug = f"```\nmetrics={p0.metrics}\ndir={[a for a in dir(p0) if not a.startswith('_')]}\n```"
+                await ctx.reply(debug[:2000])
                 lines = []
                 total_cost = 0.0
                 for p in predictions:
