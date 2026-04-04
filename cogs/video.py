@@ -6,29 +6,8 @@ import requests
 from discord.ext import commands
 from io import BytesIO
 
-from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri, unwrap_output
-from error_log import log_error
-
-
-async def poll_prediction(prediction, label: str, status_msg, emoji: str):
-    """Poll a Replicate prediction until it completes, updating the status message."""
-    elapsed = 0
-    while prediction.status not in ("succeeded", "failed", "canceled"):
-        await asyncio.sleep(5)
-        elapsed += 5
-        try:
-            prediction = await asyncio.wait_for(
-                asyncio.to_thread(replicate.predictions.get, prediction.id),
-                timeout=30.0,
-            )
-        except asyncio.TimeoutError:
-            print(f"[{label}] {elapsed}s - poll hung, retrying...")
-            continue
-        print(f"[{label}] {elapsed}s - status: {prediction.status}")
-        await status_msg.edit(
-            content=f"{emoji} Generating... ({elapsed}s, status: {prediction.status})"
-        )
-    return prediction
+from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri, unwrap_output, poll_prediction
+from cogs.error_log import log_error
 
 
 class Video(commands.Cog):

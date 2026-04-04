@@ -4,7 +4,7 @@ import replicate
 from discord.ext import commands
 
 from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri
-from error_log import log_error
+from cogs.error_log import log_error
 
 
 class Vision(commands.Cog):

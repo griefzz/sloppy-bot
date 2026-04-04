@@ -1,6 +1,8 @@
+import asyncio
 import base64
 
 import discord
+import replicate
 import requests
 from discord.ext import commands
 from io import BytesIO
@@ -89,9 +91,29 @@ async def reply_with_file(ctx: commands.Context, url, filename: str, status_msg=
     return True
 
 
+async def poll_prediction(prediction, label: str, status_msg, emoji: str):
+    """Poll a Replicate prediction until it completes, updating the status message."""
+    elapsed = 0
+    while prediction.status not in ("succeeded", "failed", "canceled"):
+        await asyncio.sleep(5)
+        elapsed += 5
+        try:
+            prediction = await asyncio.wait_for(
+                asyncio.to_thread(replicate.predictions.get, prediction.id),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            print(f"[{label}] {elapsed}s - poll hung, retrying...")
+            continue
+        print(f"[{label}] {elapsed}s - status: {prediction.status}")
+        await status_msg.edit(
+            content=f"{emoji} Generating... ({elapsed}s, status: {prediction.status})"
+        )
+    return prediction
+
+
 async def run_image_model(ctx: commands.Context, model: str, model_input: dict, filename: str, cmd_name: str):
     """Run a Replicate image model with wait=True, handle the result, and reply."""
-    import replicate
     try:
         async with ctx.typing():
             output = replicate.models.predictions.create(
@@ -106,6 +128,6 @@ async def run_image_model(ctx: commands.Context, model: str, model_input: dict, 
             else:
                 await ctx.reply(f"❌ No output returned. Status: {output.status}")
     except Exception as e:
-        from error_log import log_error
+        from cogs.error_log import log_error
         log_error(cmd_name, e, ctx, model_input.get("prompt", ""))
         await ctx.reply(f"❌ An error occurred: {e}")

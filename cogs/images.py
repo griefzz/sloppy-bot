@@ -4,7 +4,7 @@ import replicate
 from discord.ext import commands
 
 from cogs.utils import get_attachments, to_data_uris, reply_with_file, run_image_model
-from error_log import log_error
+from cogs.error_log import log_error
 
 
 class Images(commands.Cog):
