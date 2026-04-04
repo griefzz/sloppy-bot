@@ -98,31 +98,26 @@ class Admin(commands.Cog):
                 if not predictions:
                     await ctx.reply("No recent predictions found.")
                     return
-                # Debug: show raw fields of first prediction
-                p0 = predictions[0]
-                debug = f"```\nmetrics={p0.metrics}\ndir={[a for a in dir(p0) if not a.startswith('_')]}\n```"
-                await ctx.reply(debug[:2000])
                 lines = []
-                total_cost = 0.0
+                total_predict = 0.0
+                total_total = 0.0
                 for p in predictions:
                     model = p.model or "unknown"
                     status = p.status
-                    time_s = ""
-                    if p.metrics and p.metrics.get("predict_time"):
-                        time_s = f"{p.metrics['predict_time']:.1f}s"
-                    cost_str = ""
-                    if hasattr(p, "cost") and p.cost is not None:
-                        total_cost += float(p.cost)
-                        cost_str = f"${float(p.cost):.4f}"
                     parts = [f"**{model}**", status]
-                    if time_s:
-                        parts.append(time_s)
-                    if cost_str:
-                        parts.append(cost_str)
+                    if p.metrics:
+                        pt = p.metrics.get("predict_time")
+                        tt = p.metrics.get("total_time")
+                        if pt:
+                            total_predict += pt
+                            parts.append(f"{pt:.1f}s predict")
+                        if tt:
+                            total_total += tt
+                            parts.append(f"{tt:.1f}s total")
                     lines.append(" | ".join(parts))
                 msg = "\n".join(lines)
-                if total_cost > 0:
-                    msg += f"\n\n**Total: ${total_cost:.4f}**"
+                if total_predict > 0:
+                    msg += f"\n\n**Totals: {total_predict:.1f}s predict / {total_total:.1f}s total**"
                 await ctx.reply(msg[:2000])
         except Exception as e:
             await ctx.reply(f"❌ An error occurred: {e}")
