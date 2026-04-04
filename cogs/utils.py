@@ -65,9 +65,17 @@ async def to_data_uris(attachments: list, embed_urls: list, limit: int = 5, defa
     return data_uris
 
 
-async def reply_with_file(ctx: commands.Context, url: str, filename: str, status_msg=None):
+def unwrap_output(output):
+    """Unwrap a Replicate output that may be a list, FileOutput, or string into a URL string."""
+    if isinstance(output, list):
+        output = output[0]
+    return str(output)
+
+
+async def reply_with_file(ctx: commands.Context, url, filename: str, status_msg=None):
     """Download a URL and reply with it as a Discord file. Returns True on success."""
-    response = requests.get(str(url), timeout=30)
+    url = unwrap_output(url)
+    response = requests.get(url, timeout=30)
     data = BytesIO(response.content)
     if data.getbuffer().nbytes > 25 * 1024 * 1024:
         msg = f"File too large for Discord. URL:\n{url}"

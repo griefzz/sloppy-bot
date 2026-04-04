@@ -6,7 +6,7 @@ import requests
 from discord.ext import commands
 from io import BytesIO
 
-from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri
+from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri, unwrap_output
 from error_log import log_error
 
 
@@ -71,7 +71,7 @@ class Video(commands.Cog):
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 video_response = await asyncio.to_thread(
-                    requests.get, str(prediction.output), timeout=(10, 120)
+                    requests.get, unwrap_output(prediction.output), timeout=(10, 120)
                 )
                 video_data = BytesIO(video_response.content)
                 if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
@@ -124,7 +124,7 @@ class Video(commands.Cog):
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 audio_response = await asyncio.to_thread(
-                    requests.get, str(prediction.output), timeout=(10, 120)
+                    requests.get, unwrap_output(prediction.output), timeout=(10, 120)
                 )
                 audio_data = BytesIO(audio_response.content)
                 if audio_data.getbuffer().nbytes > 25 * 1024 * 1024:
