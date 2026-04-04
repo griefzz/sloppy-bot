@@ -5,6 +5,8 @@ import sys
 from io import BytesIO
 from urllib.parse import urlparse
 
+from cogs.utils import unwrap_output
+
 import discord
 import replicate
 import requests
@@ -81,7 +83,7 @@ class Admin(commands.Cog):
                     await ctx.reply("No recent succeeded predictions found.")
                     return
 
-                url = str(prediction.output)
+                url = unwrap_output(prediction.output)
                 response = await asyncio.to_thread(
                     requests.get, url, timeout=(10, 120)
                 )
