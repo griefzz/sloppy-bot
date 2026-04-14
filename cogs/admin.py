@@ -129,6 +129,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/continue [text]",
+            value="Continue a /seed video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
+            inline=False,
+        )
+        embed.add_field(
             name="/mmaudio [text]",
             value="Generate audio using MMAudio\n• Attach/reply with a video for video-to-audio\n• Example: `/mmaudio wind blowing through trees`",
             inline=False,
