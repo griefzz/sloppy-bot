@@ -10,7 +10,13 @@ import requests
 from discord.ext import commands
 from io import BytesIO
 
-from cogs.utils import get_attachments, attachment_to_data_uri, url_to_data_uri, unwrap_output, poll_prediction
+from cogs.utils import (
+    get_attachments,
+    attachment_to_data_uri,
+    url_to_data_uri,
+    unwrap_output,
+    poll_prediction,
+)
 from cogs.error_log import log_error
 
 
@@ -23,9 +29,19 @@ def extract_last_frame(video_bytes: bytes) -> bytes:
     try:
         subprocess.run(
             [
-                "ffmpeg", "-sseof", "-1", "-i", video_path,
-                "-update", "1", "-frames:v", "1", "-q:v", "2",
-                frame_path, "-y",
+                "ffmpeg",
+                "-sseof",
+                "-1",
+                "-i",
+                video_path,
+                "-update",
+                "1",
+                "-frames:v",
+                "1",
+                "-q:v",
+                "2",
+                frame_path,
+                "-y",
             ],
             check=True,
             capture_output=True,
@@ -41,7 +57,9 @@ def extract_last_frame(video_bytes: bytes) -> bytes:
                 pass
 
 
-async def run_seedance(ctx: commands.Context, model_input: dict, status_msg, label: str = "seed"):
+async def run_seedance(
+    ctx: commands.Context, model_input: dict, status_msg, label: str = "seed"
+):
     """Run a Seedance prediction with polling and reply with the video."""
     prediction = await asyncio.to_thread(
         replicate.models.predictions.create,
@@ -51,10 +69,14 @@ async def run_seedance(ctx: commands.Context, model_input: dict, status_msg, lab
     print(f"[{label}] Prediction created: {prediction.id}")
     prediction = await poll_prediction(prediction, label, status_msg, "🎬")
     if prediction.status == "failed":
-        await status_msg.edit(content=f"❌ Generation failed: {prediction.error or 'Unknown error'}")
+        await status_msg.edit(
+            content=f"❌ Generation failed: {prediction.error or 'Unknown error'}"
+        )
         return
     if not prediction.output:
-        await status_msg.edit(content=f"❌ No output returned. Status: {prediction.status}")
+        await status_msg.edit(
+            content=f"❌ No output returned. Status: {prediction.status}"
+        )
         return
     await status_msg.edit(content="Downloading...")
     url = unwrap_output(prediction.output)
@@ -81,11 +103,13 @@ class Video(commands.Cog):
         Usage: /seed prompt + 1 image (image-to-video, first frame)
         Usage: /seed prompt + 2 images (first + last frame)
         """
-        status_msg = await ctx.reply("🎬 Generating video, this may take a few minutes...")
+        status_msg = await ctx.reply(
+            "🎬 Generating video, this may take a few minutes..."
+        )
         try:
             model_input = {
                 "prompt": text,
-                "duration": 5,
+                "duration": 8,
                 "resolution": "480p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
@@ -96,7 +120,9 @@ class Video(commands.Cog):
             elif embed_urls:
                 model_input["image"] = url_to_data_uri(embed_urls[0])
             if len(attachments) >= 2:
-                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
+                model_input["last_frame_image"] = await attachment_to_data_uri(
+                    attachments[1]
+                )
             await run_seedance(ctx, model_input, status_msg, "seed")
         except Exception as e:
             log_error("seed", e, ctx, text)
@@ -112,11 +138,14 @@ class Video(commands.Cog):
         if not ctx.message.reference:
             await ctx.reply("❌ Reply to a /seed video with /continue.")
             return
-        status_msg = await ctx.reply("🎬 Continuing video, this may take a few minutes...")
+        status_msg = await ctx.reply(
+            "🎬 Continuing video, this may take a few minutes..."
+        )
         try:
             ref_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
             video_attachments = [
-                a for a in ref_msg.attachments
+                a
+                for a in ref_msg.attachments
                 if a.content_type and a.content_type.startswith("video/")
             ]
             if not video_attachments:
@@ -131,21 +160,25 @@ class Video(commands.Cog):
             prompt = text.strip()
             if not prompt and ref_msg.reference:
                 try:
-                    original = await ctx.channel.fetch_message(ref_msg.reference.message_id)
+                    original = await ctx.channel.fetch_message(
+                        ref_msg.reference.message_id
+                    )
                     content = original.content.strip()
                     for prefix in ("/seed ", "/continue "):
                         if content.startswith(prefix):
-                            prompt = content[len(prefix):].strip()
+                            prompt = content[len(prefix) :].strip()
                             break
                 except discord.NotFound:
                     pass
             if not prompt:
-                await status_msg.edit(content="❌ Couldn't find original prompt. Provide one with /continue <prompt>.")
+                await status_msg.edit(
+                    content="❌ Couldn't find original prompt. Provide one with /continue <prompt>."
+                )
                 return
 
             model_input = {
                 "prompt": prompt,
-                "duration": 5,
+                "duration": 8,
                 "resolution": "480p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
@@ -155,7 +188,9 @@ class Video(commands.Cog):
             await run_seedance(ctx, model_input, status_msg, "continue")
         except subprocess.CalledProcessError as e:
             log_error("continue", e, ctx, text)
-            await status_msg.edit(content=f"❌ ffmpeg failed: {e.stderr.decode()[:500] if e.stderr else e}")
+            await status_msg.edit(
+                content=f"❌ ffmpeg failed: {e.stderr.decode()[:500] if e.stderr else e}"
+            )
         except Exception as e:
             log_error("continue", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
@@ -171,16 +206,18 @@ class Video(commands.Cog):
         try:
             model_input = {
                 "prompt": text,
-                "negative_prompt": "music",
+                "negative_prompt": "",
                 "duration": 8,
-                "num_steps": 25,
-                "cfg_strength": 4.5,
+                "num_steps": 50,
+                "cfg_strength": 10,
             }
             attachments, embed_urls = await get_attachments(ctx, "video/")
             if attachments:
                 model_input["video"] = await attachment_to_data_uri(attachments[0])
             elif embed_urls:
-                model_input["video"] = url_to_data_uri(embed_urls[0], default_type="video/mp4", timeout=60)
+                model_input["video"] = url_to_data_uri(
+                    embed_urls[0], default_type="video/mp4", timeout=60
+                )
             prediction = await asyncio.to_thread(
                 replicate.predictions.create,
                 version="62871fb59889b2d7c13777f08deb3b36bdff88f7e1d53a50ad7694548a41b484",
@@ -189,7 +226,9 @@ class Video(commands.Cog):
             print(f"[mmaudio] Prediction created: {prediction.id}")
             prediction = await poll_prediction(prediction, "mmaudio", status_msg, "🎵")
             if prediction.status == "failed":
-                await status_msg.edit(content=f"❌ Generation failed: {prediction.error or 'Unknown error'}")
+                await status_msg.edit(
+                    content=f"❌ Generation failed: {prediction.error or 'Unknown error'}"
+                )
             elif prediction.output:
                 await status_msg.edit(content="Downloading...")
                 audio_response = await asyncio.to_thread(
