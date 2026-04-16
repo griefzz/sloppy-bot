@@ -206,10 +206,10 @@ class Video(commands.Cog):
         try:
             model_input = {
                 "prompt": text,
-                "negative_prompt": "",
+                "negative_prompt": "distortion, low quality, silence",
                 "duration": 8,
                 "num_steps": 50,
-                "cfg_strength": 10,
+                "cfg_strength": 7.0,
             }
             attachments, embed_urls = await get_attachments(ctx, "video/")
             if attachments:
