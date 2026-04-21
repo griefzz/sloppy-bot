@@ -109,7 +109,7 @@ class Video(commands.Cog):
         try:
             model_input = {
                 "prompt": text,
-                "duration": 8,
+                "duration": 5,
                 "resolution": "480p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
@@ -178,7 +178,7 @@ class Video(commands.Cog):
 
             model_input = {
                 "prompt": prompt,
-                "duration": 8,
+                "duration": 5,
                 "resolution": "480p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
@@ -207,7 +207,7 @@ class Video(commands.Cog):
             model_input = {
                 "prompt": text,
                 "negative_prompt": "distortion, low quality, silence",
-                "duration": 8,
+                "duration": 5,
                 "num_steps": 50,
                 "cfg_strength": 7.0,
             }
