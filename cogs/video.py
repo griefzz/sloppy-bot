@@ -216,10 +216,12 @@ class Video(commands.Cog):
         try:
             model_input = {
                 "prompt": text,
-                "duration": 5,
+                "duration": 8,
                 "resolution": "720p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
+                "disable_safety_filter": True,
+                "prompt_upsampling": True,
             }
             attachments, embed_urls = await get_attachments(ctx, "image/")
             if attachments:
