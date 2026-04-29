@@ -129,6 +129,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/pvid <text>",
+            value="Generate a video using P-Video (720p)\n• Attach/reply with an image for image-to-video\n• Example: `/pvid waves crashing on rocks`",
+            inline=False,
+        )
+        embed.add_field(
             name="/continue [text]",
             value="Continue a /seed video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
             inline=False,

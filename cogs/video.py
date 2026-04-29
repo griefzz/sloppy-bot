@@ -57,13 +57,13 @@ def extract_last_frame(video_bytes: bytes) -> bytes:
                 pass
 
 
-async def run_seedance(
-    ctx: commands.Context, model_input: dict, status_msg, label: str = "seed"
+async def run_video_model(
+    ctx: commands.Context, model: str, model_input: dict, status_msg, label: str
 ):
-    """Run a Seedance prediction with polling and reply with the video."""
+    """Run a Replicate video model with polling and reply with the video."""
     prediction = await asyncio.to_thread(
         replicate.models.predictions.create,
-        model="bytedance/seedance-1-pro-fast",
+        model=model,
         input=model_input,
     )
     print(f"[{label}] Prediction created: {prediction.id}")
@@ -123,7 +123,9 @@ class Video(commands.Cog):
                 model_input["last_frame_image"] = await attachment_to_data_uri(
                     attachments[1]
                 )
-            await run_seedance(ctx, model_input, status_msg, "seed")
+            await run_video_model(
+                ctx, "bytedance/seedance-1-pro-fast", model_input, status_msg, "seed"
+            )
         except Exception as e:
             log_error("seed", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
@@ -185,7 +187,13 @@ class Video(commands.Cog):
                 "image": first_frame,
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
-            await run_seedance(ctx, model_input, status_msg, "continue")
+            await run_video_model(
+                ctx,
+                "bytedance/seedance-1-pro-fast",
+                model_input,
+                status_msg,
+                "continue",
+            )
         except subprocess.CalledProcessError as e:
             log_error("continue", e, ctx, text)
             await status_msg.edit(
@@ -193,6 +201,36 @@ class Video(commands.Cog):
             )
         except Exception as e:
             log_error("continue", e, ctx, text)
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+
+    @commands.command()
+    async def pvid(self, ctx: commands.Context, *, text: str):
+        """Generate a video using P-Video (prunaai/p-video).
+
+        Usage: /pvid prompt (text-to-video)
+        Usage: /pvid prompt + image (image-to-video)
+        """
+        status_msg = await ctx.reply(
+            "🎬 Generating video, this may take a few minutes..."
+        )
+        try:
+            model_input = {
+                "prompt": text,
+                "duration": 5,
+                "resolution": "720p",
+                "aspect_ratio": "16:9",
+                "fps": 24,
+            }
+            attachments, embed_urls = await get_attachments(ctx, "image/")
+            if attachments:
+                model_input["image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["image"] = url_to_data_uri(embed_urls[0])
+            await run_video_model(
+                ctx, "prunaai/p-video", model_input, status_msg, "pvid"
+            )
+        except Exception as e:
+            log_error("pvid", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
     @commands.command()
