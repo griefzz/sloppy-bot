@@ -221,7 +221,7 @@ class Video(commands.Cog):
                 "aspect_ratio": "16:9",
                 "fps": 24,
                 "disable_safety_filter": True,
-                "prompt_upsampling": True,
+                "prompt_upsampling": False,
             }
             attachments, embed_urls = await get_attachments(ctx, "image/")
             if attachments:
