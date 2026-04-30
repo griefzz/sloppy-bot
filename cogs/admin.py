@@ -134,6 +134,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/zpvid <text>",
+            value="Like /pvid but with prompt_upsampling disabled (raw prompt)\n• Example: `/zpvid waves crashing on rocks`",
+            inline=False,
+        )
+        embed.add_field(
             name="/continue [text]",
             value="Continue a /seed video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
             inline=False,
