@@ -208,7 +208,8 @@ class Video(commands.Cog):
         """Generate a video using P-Video (prunaai/p-video).
 
         Usage: /pvid prompt (text-to-video)
-        Usage: /pvid prompt + image (image-to-video)
+        Usage: /pvid prompt + 1 image (image-to-video, first frame)
+        Usage: /pvid prompt + 2 images (first + last frame)
         """
         status_msg = await ctx.reply(
             "🎬 Generating video, this may take a few minutes..."
@@ -228,6 +229,8 @@ class Video(commands.Cog):
                 model_input["image"] = await attachment_to_data_uri(attachments[0])
             elif embed_urls:
                 model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             await run_video_model(
                 ctx, "prunaai/p-video", model_input, status_msg, "pvid"
             )
@@ -240,7 +243,8 @@ class Video(commands.Cog):
         """Generate a video using P-Video with prompt_upsampling disabled.
 
         Usage: /zpvid prompt (text-to-video, raw prompt, no auto-enhance)
-        Usage: /zpvid prompt + image (image-to-video)
+        Usage: /zpvid prompt + 1 image (image-to-video, first frame)
+        Usage: /zpvid prompt + 2 images (first + last frame)
         """
         status_msg = await ctx.reply(
             "🎬 Generating video, this may take a few minutes..."
@@ -260,6 +264,8 @@ class Video(commands.Cog):
                 model_input["image"] = await attachment_to_data_uri(attachments[0])
             elif embed_urls:
                 model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             await run_video_model(
                 ctx, "prunaai/p-video", model_input, status_msg, "zpvid"
             )

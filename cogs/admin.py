@@ -130,12 +130,12 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/pvid <text>",
-            value="Generate a video using P-Video (720p)\n• Attach/reply with an image for image-to-video\n• Example: `/pvid waves crashing on rocks`",
+            value="Generate a video using P-Video (720p)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/pvid waves crashing on rocks`",
             inline=False,
         )
         embed.add_field(
             name="/zpvid <text>",
-            value="Like /pvid but with prompt_upsampling disabled (raw prompt)\n• Example: `/zpvid waves crashing on rocks`",
+            value="Like /pvid but with prompt_upsampling disabled (raw prompt)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/zpvid waves crashing on rocks`",
             inline=False,
         )
         embed.add_field(
