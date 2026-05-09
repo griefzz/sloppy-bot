@@ -30,6 +30,27 @@ class Images(commands.Cog):
         }, "generated_image.jpg", "flux")
 
     @commands.command()
+    async def flux2(self, ctx: commands.Context, *, text: str):
+        """Generate an image using FLUX.2 Klein 9B.
+
+        Usage: /flux2 your image description here
+        Attach 1-5 images for image-to-image, or reply to a message with images.
+        """
+        model_input = {
+            "prompt": text,
+            "aspect_ratio": "16:9",
+            "output_format": "jpg",
+            "output_quality": 95,
+            "output_megapixels": "1",
+            "disable_safety_checker": True,
+        }
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            model_input["images"] = await to_data_uris(attachments, embed_urls, limit=5)
+            model_input["aspect_ratio"] = "match_input_image"
+        await run_image_model(ctx, "black-forest-labs/flux-2-klein-9b", model_input, "generated_image.jpg", "flux2")
+
+    @commands.command()
     async def nana(self, ctx: commands.Context, *, text: str):
         """Generate an image using Google Nano Banana (Gemini Flash).
 
