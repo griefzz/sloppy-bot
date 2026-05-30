@@ -87,8 +87,8 @@ class Images(commands.Cog):
             await run_image_model(ctx, "prunaai/p-image", {
                 "prompt": text,
                 "aspect_ratio": "custom",
-                "width": 1920,
-                "height": 1080,
+                "width": 1440,
+                "height": 810,
                 "disable_safety_checker": True,
             }, "generated_image.jpg", "pimg")
 
