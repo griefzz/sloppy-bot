@@ -69,56 +69,90 @@ class Images(commands.Cog):
 
     @commands.command()
     async def pimg(self, ctx: commands.Context, *, text: str):
-        """Edit images using P-Image-Edit.
+        """Generate or edit images using P-Image.
 
-        Usage: /pimg your editing instructions here
-        Attach 1-5 images to edit, or reply to a message with an image.
+        Usage: /pimg your prompt here (text-to-image)
+        Attach 1-5 images or reply to a message with an image to edit instead.
         """
         attachments, embed_urls = await get_attachments(ctx, "image/")
-        if not attachments and not embed_urls:
-            await ctx.reply("❌ Attach at least one image to edit, or reply to a message with an image.")
-            return
-        data_uris = await to_data_uris(attachments, embed_urls, limit=5)
-        await run_image_model(ctx, "prunaai/p-image-edit", {
-            "prompt": text,
-            "images": data_uris,
-            "aspect_ratio": "16:9",
-            "disable_safety_checker": True,
-        }, "generated_image.jpg", "pimg")
+        if attachments or embed_urls:
+            data_uris = await to_data_uris(attachments, embed_urls, limit=5)
+            await run_image_model(ctx, "prunaai/p-image-edit", {
+                "prompt": text,
+                "images": data_uris,
+                "aspect_ratio": "16:9",
+                "disable_safety_checker": True,
+            }, "generated_image.jpg", "pimg")
+        else:
+            await run_image_model(ctx, "prunaai/p-image", {
+                "prompt": text,
+                "aspect_ratio": "custom",
+                "width": 1920,
+                "height": 1080,
+                "disable_safety_checker": True,
+            }, "generated_image.jpg", "pimg")
 
     @commands.command()
     async def qwen(self, ctx: commands.Context, *, text: str):
-        """Edit images using Qwen Image Edit Plus.
+        """Generate or edit images using Qwen Image.
 
-        Usage: /qwen your editing instructions here
-        Attach 1-3 images to edit, or reply to a message with images.
+        Usage: /qwen your prompt here (text-to-image)
+        Attach 1-3 images or reply to a message with images to edit instead.
         """
-        try:
-            attachments, embed_urls = await get_attachments(ctx, "image/")
-            if not attachments and not embed_urls:
-                await ctx.reply("❌ Attach at least one image to edit, or reply to a message with an image.")
-                return
-            async with ctx.typing():
-                data_uris = await to_data_uris(attachments, embed_urls, limit=3)
-                output = await asyncio.to_thread(
-                    replicate.run,
-                    "qwen/qwen-image-edit-plus",
-                    input={
-                        "image": data_uris,
-                        "prompt": text,
-                        "output_format": "jpg",
-                        "aspect_ratio": "match_input_image",
-                        "disable_safety_checker": True,
-                    },
-                )
-                urls = output if isinstance(output, list) else [output]
-                if urls:
-                    await reply_with_file(ctx, str(urls[0]), "edited_image.jpg")
-                else:
-                    await ctx.reply("❌ No output returned.")
-        except Exception as e:
-            log_error("qwen", e, ctx, text)
-            await ctx.reply(f"❌ An error occurred: {e}")
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            try:
+                async with ctx.typing():
+                    data_uris = await to_data_uris(attachments, embed_urls, limit=3)
+                    output = await asyncio.to_thread(
+                        replicate.run,
+                        "qwen/qwen-image-edit-plus",
+                        input={
+                            "image": data_uris,
+                            "prompt": text,
+                            "output_format": "jpg",
+                            "aspect_ratio": "match_input_image",
+                            "disable_safety_checker": True,
+                        },
+                    )
+                    urls = output if isinstance(output, list) else [output]
+                    if urls:
+                        await reply_with_file(ctx, str(urls[0]), "edited_image.jpg")
+                    else:
+                        await ctx.reply("No output returned.")
+            except Exception as e:
+                log_error("qwen", e, ctx, text)
+                await ctx.reply(f"An error occurred: {e}")
+        else:
+            await run_image_model(ctx, "qwen/qwen-image", {
+                "prompt": text,
+                "aspect_ratio": "16:9",
+                "output_format": "jpg",
+                "disable_safety_checker": True,
+            }, "generated_image.jpg", "qwen")
+
+    @commands.command()
+    async def grok(self, ctx: commands.Context, *, text: str):
+        """Generate or edit images using xAI Grok Imagine.
+
+        Usage: /grok your image description here (text-to-image)
+        Attach 1-3 images or reply to a message with images to edit instead.
+        """
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            data_uris = await to_data_uris(attachments, embed_urls, limit=3)
+            await run_image_model(ctx, "xai/grok-imagine-image", {
+                "prompt": text,
+                "image": data_uris[0] if len(data_uris) == 1 else data_uris,
+                "aspect_ratio": "match_input_image",
+                "resolution": "2k",
+            }, "generated_image.jpg", "grok")
+        else:
+            await run_image_model(ctx, "xai/grok-imagine-image", {
+                "prompt": text,
+                "aspect_ratio": "16:9",
+                "resolution": "2k",
+            }, "generated_image.jpg", "grok")
 
     @commands.command()
     async def zimg(self, ctx: commands.Context, *, text: str):

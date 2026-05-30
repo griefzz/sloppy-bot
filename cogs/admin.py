@@ -94,6 +94,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/grok <text>",
+            value="Generate or edit images using xAI Grok Imagine (2k, 16:9)\n• No attachment: text-to-image\n• Attach 1-3 images or reply with an image: edit mode\n• Example: `/grok a futuristic city at night`",
+            inline=False,
+        )
+        embed.add_field(
             name="/nana <text>",
             value="Generate an image using Google Nano Banana (Gemini Flash)\n• Attach or reply with images for reference\n• Example: `/nana a tropical sunset`",
             inline=False,
@@ -105,12 +110,12 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/pimg <text>",
-            value="Edit images using P-Image-Edit\n• Attach 1-5 images or reply to a message with an image\n• Example: `/pimg make the sky purple`",
+            value="Generate or edit images using P-Image\n• No attachment: text-to-image\n• Attach 1-5 images or reply with an image: edit mode\n• Example: `/pimg a cat wearing sunglasses` or `/pimg make the sky purple`",
             inline=False,
         )
         embed.add_field(
             name="/qwen <text>",
-            value="Edit images using Qwen Image Edit Plus\n• Attach 1-3 images or reply to a message with an image\n• Example: `/qwen remove the background`",
+            value="Generate or edit images using Qwen Image\n• No attachment: text-to-image\n• Attach 1-3 images or reply with an image: edit mode\n• Example: `/qwen a futuristic city` or `/qwen remove the background`",
             inline=False,
         )
         embed.add_field(
@@ -154,7 +159,33 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(name="/help_bot", value="Show this help message", inline=False)
+        embed.add_field(name="/cost", value="Show approximate cost per run for each command", inline=False)
 
+        await ctx.reply(embed=embed)
+
+    @commands.command()
+    async def cost(self, ctx: commands.Context):
+        """Show approximate Replicate cost per run for each command (as of 5/29/2026).
+
+        Usage: /cost
+        """
+        embed = discord.Embed(
+            title="Approximate costs per run (as of 5/29/2026)",
+            description="Based on default settings. Variable-rate models show the typical run cost.",
+            color=0x0099FF,
+        )
+        embed.add_field(name="/flux",    value="~$0.005  — prunaai/flux-fast (200 runs/$1)", inline=False)
+        embed.add_field(name="/grok",    value="~$0.02  — xai/grok-imagine-image (2k, 16:9)", inline=False)
+        embed.add_field(name="/flux2",   value="$0.002/input MP + $0.015/output MP  — black-forest-labs/flux-2-klein-9b\nText-to-image (1MP out): ~$0.015 | Image-to-image: +$0.002/input MP per image (up to 5)", inline=False)
+        embed.add_field(name="/nana",    value="~$0.04  — google/nano-banana", inline=False)
+        embed.add_field(name="/pimg",    value="~$0.005 text-to-image (prunaai/p-image) | ~$0.01 with images (prunaai/p-image-edit)", inline=False)
+        embed.add_field(name="/qwen",    value="~$0.025 text-to-image (qwen/qwen-image) | ~$0.03 with images (qwen/qwen-image-edit-plus)", inline=False)
+        embed.add_field(name="/zimg",    value="~$0.02  — prunaai/z-image-turbo (1920×1088, ~2MP output)", inline=False)
+        embed.add_field(name="/blip",    value="~$0.00022  — salesforce/blip", inline=False)
+        embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
+        embed.add_field(name="/seed\n/continue", value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
+        embed.add_field(name="/pvid\n/zpvid",    value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)
         await ctx.reply(embed=embed)
 
 
