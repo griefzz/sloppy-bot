@@ -119,6 +119,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/ideo <text>",
+            value="Generate an image using Ideogram v4 Turbo (2560x1440, 16:9)\n• Example: `/ideo a surreal landscape with floating islands`",
+            inline=False,
+        )
+        embed.add_field(
             name="/blip [question]",
             value="Caption or ask about an image (BLIP)\n• Attach or reply with an image\n• Example: `/blip` or `/blip what color is the car?`",
             inline=False,
@@ -185,6 +190,7 @@ class Admin(commands.Cog):
         embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
         embed.add_field(name="/seed\n/continue", value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
         embed.add_field(name="/pvid\n/zpvid",    value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
         embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)
         await ctx.reply(embed=embed)
 
