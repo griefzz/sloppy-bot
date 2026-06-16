@@ -155,6 +155,18 @@ class Images(commands.Cog):
             }, "generated_image.jpg", "grok")
 
     @commands.command()
+    async def ideo(self, ctx: commands.Context, *, text: str):
+        """Generate an image using Ideogram v4 Turbo.
+
+        Usage: /ideo your image description here
+        """
+        await run_image_model(ctx, "ideogram-ai/ideogram-v4-turbo", {
+            "prompt": text,
+            "resolution": "2560x1440",
+            "enable_copyright_detection": False,
+        }, "generated_image.jpg", "ideo")
+
+    @commands.command()
     async def zimg(self, ctx: commands.Context, *, text: str):
         """Generate an image using Z-Image Turbo.
 
