@@ -155,6 +155,29 @@ class Images(commands.Cog):
             }, "generated_image.jpg", "grok")
 
     @commands.command()
+    async def lbgrok(self, ctx: commands.Context, *, text: str):
+        """Generate or edit images using xAI Grok Imagine (Quality).
+
+        Usage: /lbgrok your image description here (text-to-image)
+        Attach 1-3 images or reply to a message with images to edit instead.
+        """
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            data_uris = await to_data_uris(attachments, embed_urls, limit=3)
+            await run_image_model(ctx, "xai/grok-imagine-image-quality", {
+                "prompt": text,
+                "image": data_uris[0] if len(data_uris) == 1 else data_uris,
+                "aspect_ratio": "match_input_image",
+                "resolution": "1k",
+            }, "generated_image.jpg", "lbgrok")
+        else:
+            await run_image_model(ctx, "xai/grok-imagine-image-quality", {
+                "prompt": text,
+                "aspect_ratio": "16:9",
+                "resolution": "1k",
+            }, "generated_image.jpg", "lbgrok")
+
+    @commands.command()
     async def ideo(self, ctx: commands.Context, *, text: str):
         """Generate an image using Ideogram v4 Turbo.
 

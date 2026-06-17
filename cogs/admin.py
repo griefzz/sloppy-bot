@@ -99,6 +99,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/lbgrok <text>",
+            value="Generate or edit images using xAI Grok Imagine Quality (1k, 16:9)\n• No attachment: text-to-image\n• Attach 1-3 images or reply with an image: edit mode\n• Example: `/lbgrok a futuristic city at night`",
+            inline=False,
+        )
+        embed.add_field(
             name="/nana <text>",
             value="Generate an image using Google Nano Banana (Gemini Flash)\n• Attach or reply with images for reference\n• Example: `/nana a tropical sunset`",
             inline=False,
@@ -181,6 +186,7 @@ class Admin(commands.Cog):
         )
         embed.add_field(name="/flux",    value="~$0.005  — prunaai/flux-fast (200 runs/$1)", inline=False)
         embed.add_field(name="/grok",    value="~$0.02  — xai/grok-imagine-image (2k, 16:9)", inline=False)
+        embed.add_field(name="/lbgrok",  value="~$0.05 text-to-image | +$0.01 per input image  — xai/grok-imagine-image-quality (1k)", inline=False)
         embed.add_field(name="/flux2",   value="$0.002/input MP + $0.015/output MP  — black-forest-labs/flux-2-klein-9b\nText-to-image (1MP out): ~$0.015 | Image-to-image: +$0.002/input MP per image (up to 5)", inline=False)
         embed.add_field(name="/nana",    value="~$0.04  — google/nano-banana", inline=False)
         embed.add_field(name="/pimg",    value="~$0.005 text-to-image (prunaai/p-image) | ~$0.01 with images (prunaai/p-image-edit)", inline=False)
