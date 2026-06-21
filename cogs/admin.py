@@ -45,6 +45,53 @@ class Admin(commands.Cog):
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
     @commands.command()
+    async def log(self, ctx: commands.Context, n: int = 50):
+        """Show the last N lines of the bot's systemd journal logs.
+
+        Usage: /log        (last 50 lines)
+               /log 100    (last 100 lines)
+        Reads `journalctl -u <service>`; the service name comes from the
+        SYSTEMD_SERVICE env var (defaults to "sloppy-bot").
+        """
+        n = max(1, min(n, 500))
+        service = os.getenv("SYSTEMD_SERVICE", "sloppy-bot")
+        try:
+            async with ctx.typing():
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["journalctl", "-u", service, "-n", str(n),
+                     "--no-pager", "-o", "short-precise"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+        except FileNotFoundError:
+            await ctx.reply("`journalctl` not found — this only works on the systemd host.")
+            return
+        except Exception as e:
+            await ctx.reply(f"❌ Failed to read logs: {e}")
+            return
+
+        output = (result.stdout or "").strip()
+        if not output:
+            err = (result.stderr or "").strip()
+            await ctx.reply(
+                f"No log output for `{service}`."
+                + (f"\n```\n{err[:1800]}\n```" if err else
+                   " (Check the service name and that the bot's user can read the journal.)")
+            )
+            return
+
+        if len(output) > 1900:
+            data = BytesIO(output.encode("utf-8", "replace"))
+            await ctx.reply(
+                content=f"Last {n} lines of `{service}` (truncated to a file):",
+                file=discord.File(data, f"{service}.log"),
+            )
+        else:
+            await ctx.reply(f"```\n{output}\n```")
+
+    @commands.command()
     async def gimme(self, ctx: commands.Context, n: int = 0):
         """Re-post the Nth most recent succeeded Replicate prediction.
 
@@ -166,6 +213,11 @@ class Admin(commands.Cog):
         embed.add_field(
             name="/gimme [n]",
             value="Re-post the Nth most recent Replicate output\n• Example: `/gimme` (latest) or `/gimme 2` (3rd latest)",
+            inline=False,
+        )
+        embed.add_field(
+            name="/log [n]",
+            value="Show the last N lines of the bot's systemd logs (default 50)\n• Example: `/log 100`",
             inline=False,
         )
         embed.add_field(name="/help_bot", value="Show this help message", inline=False)
