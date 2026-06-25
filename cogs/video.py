@@ -109,6 +109,7 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
     AUDIO_KBPS = 128
     paths: list[str] = []
     out_path = None
+    fs_path = None
     log_file = None
     try:
         for data in (prev_bytes, new_bytes):
@@ -133,6 +134,7 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         out_tf = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
         out_path = out_tf.name
         out_tf.close()
+        fs_path = out_path + ".fs.mp4"
         log_file = out_path + "-pass"
 
         norm = (
@@ -147,8 +149,9 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         video_graph = (
             f"[0:v]{norm}[v0];[1:v]{norm}[v1];[v0][v1]concat=n=2:v=1:a=0[outv]"
         )
+        quiet = ["-hide_banner", "-loglevel", "error", "-nostats"]
         pass1 = [
-            "ffmpeg", "-y", "-i", prev_path, "-i", new_path,
+            "ffmpeg", "-y", *quiet, "-i", prev_path, "-i", new_path,
             "-filter_complex", video_graph, "-map", "[outv]",
             "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
             "-pass", "1", "-passlogfile", log_file, "-an", "-f", "null", os.devnull,
@@ -159,7 +162,7 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         # audio track is backfilled with silence from a lavfi anullsrc input, which is
         # only added when actually needed (an unused input can break older ffmpeg).
         need_silence = not all(auds)
-        inputs = ["ffmpeg", "-y", "-i", prev_path, "-i", new_path]
+        inputs = ["ffmpeg", "-y", *quiet, "-i", prev_path, "-i", new_path]
         if need_silence:
             inputs += ["-f", "lavfi", "-i",
                        "anullsrc=channel_layout=stereo:sample_rate=44100"]
@@ -179,10 +182,21 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
             "-filter_complex", full_graph, "-map", "[outv]", "-map", "[outa]",
             "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", f"{AUDIO_KBPS}k",
-            "-pass", "2", "-passlogfile", log_file,
-            "-movflags", "+faststart", out_path,
+            "-pass", "2", "-passlogfile", log_file, out_path,
         ]
         _run_ffmpeg(pass2)
+
+        # Best-effort faststart remux (moov atom to front for progressive playback).
+        # Cheap stream copy; if it fails, fall back to the already-encoded file rather
+        # than discarding the expensive two-pass encode.
+        try:
+            _run_ffmpeg([
+                "ffmpeg", "-y", *quiet, "-i", out_path,
+                "-c", "copy", "-movflags", "+faststart", fs_path,
+            ])
+            os.replace(fs_path, out_path)
+        except Exception as e:
+            print(f"[ffmpeg] faststart remux skipped: {e}")
 
         with open(out_path, "rb") as f:
             return f.read()
@@ -190,6 +204,7 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         cleanup = list(paths)
         if out_path:
             cleanup.append(out_path)
+            cleanup.append(fs_path)
         if log_file:
             # ffmpeg writes "<passlogfile>-<stream_idx>.log" (+ ".mbtree"), so glob the prefix
             cleanup += glob.glob(f"{log_file}*.log") + glob.glob(f"{log_file}*.log.mbtree")
