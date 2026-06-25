@@ -202,7 +202,7 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/continue [text]",
-            value="Continue a /seed video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
+            value="Continue a /pvid video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
             inline=False,
         )
         embed.add_field(
@@ -246,8 +246,8 @@ class Admin(commands.Cog):
         embed.add_field(name="/zimg",    value="~$0.02  — prunaai/z-image-turbo (1920×1088, ~2MP output)", inline=False)
         embed.add_field(name="/blip",    value="~$0.00022  — salesforce/blip", inline=False)
         embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
-        embed.add_field(name="/seed\n/continue", value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
-        embed.add_field(name="/pvid\n/zpvid",    value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/seed",    value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
+        embed.add_field(name="/pvid\n/zpvid\n/continue", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
         embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)
         await ctx.reply(embed=embed)

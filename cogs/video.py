@@ -132,13 +132,13 @@ class Video(commands.Cog):
 
     @commands.command(name="continue")
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
-        """Continue a previous /seed video using its last frame as the first frame.
+        """Continue a previous /pvid video using its last frame as the first frame.
 
         Usage: reply to a bot-generated video with /continue [optional new prompt]
-        If no prompt is supplied, reuses the original /seed prompt.
+        If no prompt is supplied, reuses the original /pvid prompt.
         """
         if not ctx.message.reference:
-            await ctx.reply("❌ Reply to a /seed video with /continue.")
+            await ctx.reply("❌ Reply to a /pvid video with /continue.")
             return
         status_msg = await ctx.reply(
             "🎬 Continuing video, this may take a few minutes..."
@@ -166,7 +166,7 @@ class Video(commands.Cog):
                         ref_msg.reference.message_id
                     )
                     content = original.content.strip()
-                    for prefix in ("/seed ", "/continue "):
+                    for prefix in ("/pvid ", "/zpvid ", "/seed ", "/continue "):
                         if content.startswith(prefix):
                             prompt = content[len(prefix) :].strip()
                             break
@@ -180,16 +180,18 @@ class Video(commands.Cog):
 
             model_input = {
                 "prompt": prompt,
-                "duration": 5,
-                "resolution": "480p",
+                "duration": 8,
+                "resolution": "720p",
                 "aspect_ratio": "16:9",
                 "fps": 24,
+                "disable_safety_filter": True,
+                "prompt_upsampling": True,
                 "image": first_frame,
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
             await run_video_model(
                 ctx,
-                "bytedance/seedance-1-pro-fast",
+                "prunaai/p-video",
                 model_input,
                 status_msg,
                 "continue",

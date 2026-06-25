@@ -1,0 +1,17 @@
+[Unit]
+Description=Sloppy bot intelligent garbage dumper
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+ExecStart=/root/.local/bin/uv run python -u bot.py
+WorkingDirectory=/apps/sloppy-bot/
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=5
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
