@@ -144,7 +144,7 @@ class Images(commands.Cog):
             await run_image_model(ctx, "xai/grok-imagine-image", {
                 "prompt": text,
                 "image": data_uris[0] if len(data_uris) == 1 else data_uris,
-                "aspect_ratio": "match_input_image",
+                "aspect_ratio": "auto",
                 "resolution": "2k",
             }, "generated_image.jpg", "grok")
         else:
@@ -167,7 +167,7 @@ class Images(commands.Cog):
             await run_image_model(ctx, "xai/grok-imagine-image-quality", {
                 "prompt": text,
                 "image": data_uris[0] if len(data_uris) == 1 else data_uris,
-                "aspect_ratio": "match_input_image",
+                "aspect_ratio": "auto",
                 "resolution": "1k",
             }, "generated_image.jpg", "lbgrok")
         else:
