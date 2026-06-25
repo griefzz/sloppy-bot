@@ -94,7 +94,7 @@ def has_audio(path: str) -> bool:
     return bool(result.stdout.strip())
 
 
-def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> bytes:
+def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 8) -> bytes:
     """Concatenate two clips into one continuous stream re-encoded to fit target_mb.
 
     Both inputs are normalized to 1280x720 @ 24fps before joining, so a 480p prior
@@ -380,7 +380,7 @@ class Video(commands.Cog):
                 await status_msg.edit(content=f"❌ {e}")
                 return
             video_data = BytesIO(combined)
-            if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
+            if video_data.getbuffer().nbytes > 10 * 1024 * 1024:
                 await status_msg.edit(content="❌ Combined stream too large for Discord.")
                 return
             video_data.seek(0)
