@@ -188,7 +188,7 @@ class Images(commands.Cog):
         model_input = {
             "prompt": text,
             "aspect_ratio": "16:9",
-            "creativity": "high",
+            "creativity": "raw",
         }
         attachments, embed_urls = await get_attachments(ctx, "image/")
         if attachments or embed_urls:
