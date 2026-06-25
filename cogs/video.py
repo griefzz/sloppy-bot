@@ -145,46 +145,50 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         # identical audio params on stricter ffmpeg builds (e.g. 4.4).
         afmt = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
 
-        # Pass 1 only analyzes video, so it uses a video-only graph (no lavfi input).
-        video_graph = (
-            f"[0:v]{norm}[v0];[1:v]{norm}[v1];[v0][v1]concat=n=2:v=1:a=0[outv]"
-        )
         quiet = ["-hide_banner", "-loglevel", "error", "-nostats"]
-        pass1 = [
-            "ffmpeg", "-y", *quiet, "-i", prev_path, "-i", new_path,
-            "-filter_complex", video_graph, "-map", "[outv]",
-            "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
-            "-pass", "1", "-passlogfile", log_file, "-an", "-f", "null", os.devnull,
-        ]
-        _run_ffmpeg(pass1)
 
-        # Pass 2 carries audio. Each segment keeps its own audio; a segment with no
-        # audio track is backfilled with silence from a lavfi anullsrc input, which is
-        # only added when actually needed (an unused input can break older ffmpeg).
+        # Each segment keeps its own audio; a segment with no audio track is backfilled
+        # with silence from a lavfi anullsrc input, only added when actually needed (an
+        # unused input can break older ffmpeg).
         need_silence = not all(auds)
-        inputs = ["ffmpeg", "-y", *quiet, "-i", prev_path, "-i", new_path]
+        base = ["ffmpeg", "-y", *quiet, "-i", prev_path, "-i", new_path]
         if need_silence:
-            inputs += ["-f", "lavfi", "-i",
-                       "anullsrc=channel_layout=stereo:sample_rate=44100"]
+            base += ["-f", "lavfi", "-i",
+                     "anullsrc=channel_layout=stereo:sample_rate=44100"]
 
-        parts = [f"[0:v]{norm}[v0]", f"[1:v]{norm}[v1]"]
+        # Concatenate video and audio on SEPARATE concat filters. A single interleaved
+        # concat (v=1:a=1) pads each segment's video to match longer audio, which both
+        # changes the video frame count and makes it differ between the -f null pass 1
+        # and the real pass 2 — crashing libx264's two-pass ("more frames" / "Incomplete
+        # MB-tree stats file"). Separate concats keep the video timeline audio-independent
+        # and deterministic across both passes.
+        vparts = [
+            f"[0:v]{norm}[v0]", f"[1:v]{norm}[v1]",
+            "[v0][v1]concat=n=2:v=1:a=0[outv]",
+        ]
+        aparts = []
         for i in range(2):
             if auds[i]:
-                parts.append(f"[{i}:a]{afmt}[a{i}]")
+                aparts.append(f"[{i}:a]{afmt}[a{i}]")
             else:
-                parts.append(
+                aparts.append(
                     f"[2:a]atrim=0:{durs[i]:.3f},asetpts=PTS-STARTPTS,{afmt}[a{i}]"
                 )
-        parts.append("[v0][a0][v1][a1]concat=n=2:v=1:a=1[outv][outa]")
-        full_graph = ";".join(parts)
+        aparts.append("[a0][a1]concat=n=2:v=0:a=1[outa]")
+        full_graph = ";".join(vparts + aparts)
 
-        pass2 = inputs + [
+        # Both passes run the identical filtergraph so the video frame count matches.
+        encode_common = base + [
             "-filter_complex", full_graph, "-map", "[outv]", "-map", "[outa]",
             "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", f"{AUDIO_KBPS}k",
-            "-pass", "2", "-passlogfile", log_file, out_path,
         ]
-        _run_ffmpeg(pass2)
+        _run_ffmpeg(
+            encode_common + ["-pass", "1", "-passlogfile", log_file, "-f", "null", os.devnull]
+        )
+        _run_ffmpeg(
+            encode_common + ["-pass", "2", "-passlogfile", log_file, out_path]
+        )
 
         # Best-effort faststart remux (moov atom to front for progressive playback).
         # Cheap stream copy; if it fails, fall back to the already-encoded file rather
