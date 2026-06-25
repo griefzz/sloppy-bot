@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import glob
 import os
 import subprocess
 import tempfile
@@ -57,10 +58,129 @@ def extract_last_frame(video_bytes: bytes) -> bytes:
                 pass
 
 
-async def run_video_model(
+def get_video_duration(path: str) -> float:
+    """Return a video's duration in seconds using ffprobe."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", path],
+        capture_output=True, text=True, timeout=30,
+    )
+    return float(result.stdout.strip())
+
+
+def has_audio(path: str) -> bool:
+    """Return True if the file has at least one audio stream."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-select_streams", "a", "-show_entries",
+         "stream=index", "-of", "csv=p=0", path],
+        capture_output=True, text=True, timeout=30,
+    )
+    return bool(result.stdout.strip())
+
+
+def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> bytes:
+    """Concatenate two clips into one continuous stream re-encoded to fit target_mb.
+
+    Both inputs are normalized to 1280x720 @ 24fps before joining, so a 480p prior
+    clip and a 720p new clip stitch cleanly. Audio is preserved: each segment keeps
+    its own audio, and any segment lacking an audio track is backfilled with silence
+    so the streams stay aligned. Two-pass libx264 targets a byte budget derived from
+    the combined duration. Returns mp4 bytes.
+
+    Raises ValueError if the combined stream is too long to fit at acceptable quality.
+    """
+    MIN_VIDEO_KBPS = 300
+    AUDIO_KBPS = 128
+    paths: list[str] = []
+    out_path = None
+    log_file = None
+    try:
+        for data in (prev_bytes, new_bytes):
+            tf = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+            tf.write(data)
+            tf.close()
+            paths.append(tf.name)
+        prev_path, new_path = paths
+
+        durs = [get_video_duration(prev_path), get_video_duration(new_path)]
+        auds = [has_audio(prev_path), has_audio(new_path)]
+        duration = sum(durs)
+        # leave ~5% headroom under the hard limit for container overhead
+        budget_bits = target_mb * 1024 * 1024 * 8 * 0.95
+        video_kbps = int(budget_bits / duration / 1000) - AUDIO_KBPS
+        if video_kbps < MIN_VIDEO_KBPS:
+            raise ValueError(
+                f"Stream is too long ({duration:.0f}s) to fit in {target_mb} MB. "
+                f"Start a fresh clip with /pvid."
+            )
+
+        out_tf = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        out_path = out_tf.name
+        out_tf.close()
+        log_file = out_path + "-pass"
+
+        norm = (
+            "scale=1280:720:force_original_aspect_ratio=decrease,"
+            "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24"
+        )
+        afmt = "aformat=sample_rates=44100:channel_layouts=stereo"
+
+        # Pass 1 only analyzes video, so it uses a video-only graph (no lavfi input).
+        video_graph = (
+            f"[0:v]{norm}[v0];[1:v]{norm}[v1];[v0][v1]concat=n=2:v=1:a=0[outv]"
+        )
+        pass1 = [
+            "ffmpeg", "-y", "-i", prev_path, "-i", new_path,
+            "-filter_complex", video_graph, "-map", "[outv]",
+            "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
+            "-pass", "1", "-passlogfile", log_file, "-an", "-f", "null", os.devnull,
+        ]
+        subprocess.run(pass1, check=True, capture_output=True, timeout=300)
+
+        # Pass 2 carries audio. A silent anullsrc input (index 2) backfills any
+        # segment without its own audio track, trimmed to that segment's duration.
+        parts = [f"[0:v]{norm}[v0]", f"[1:v]{norm}[v1]"]
+        for i in range(2):
+            if auds[i]:
+                parts.append(f"[{i}:a]{afmt}[a{i}]")
+            else:
+                parts.append(
+                    f"[2:a]atrim=0:{durs[i]:.3f},asetpts=PTS-STARTPTS,{afmt}[a{i}]"
+                )
+        parts.append("[v0][a0][v1][a1]concat=n=2:v=1:a=1[outv][outa]")
+        full_graph = ";".join(parts)
+
+        pass2 = [
+            "ffmpeg", "-y", "-i", prev_path, "-i", new_path,
+            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-filter_complex", full_graph, "-map", "[outv]", "-map", "[outa]",
+            "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", f"{AUDIO_KBPS}k",
+            "-pass", "2", "-passlogfile", log_file,
+            "-movflags", "+faststart", out_path,
+        ]
+        subprocess.run(pass2, check=True, capture_output=True, timeout=300)
+
+        with open(out_path, "rb") as f:
+            return f.read()
+    finally:
+        cleanup = list(paths)
+        if out_path:
+            cleanup.append(out_path)
+        if log_file:
+            # ffmpeg writes "<passlogfile>-<stream_idx>.log" (+ ".mbtree"), so glob the prefix
+            cleanup += glob.glob(f"{log_file}*.log") + glob.glob(f"{log_file}*.log.mbtree")
+        for p in cleanup:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
+async def predict_video_bytes(
     ctx: commands.Context, model: str, model_input: dict, status_msg, label: str
 ):
-    """Run a Replicate video model with polling and reply with the video."""
+    """Run a Replicate video model with polling and return (video_bytes, url), or None on failure."""
     prediction = await asyncio.to_thread(
         replicate.models.predictions.create,
         model=model,
@@ -72,16 +192,27 @@ async def run_video_model(
         await status_msg.edit(
             content=f"❌ Generation failed: {prediction.error or 'Unknown error'}"
         )
-        return
+        return None
     if not prediction.output:
         await status_msg.edit(
             content=f"❌ No output returned. Status: {prediction.status}"
         )
-        return
+        return None
     await status_msg.edit(content="Downloading...")
     url = unwrap_output(prediction.output)
     video_response = await asyncio.to_thread(requests.get, url, timeout=(10, 120))
-    video_data = BytesIO(video_response.content)
+    return video_response.content, url
+
+
+async def run_video_model(
+    ctx: commands.Context, model: str, model_input: dict, status_msg, label: str
+):
+    """Run a Replicate video model with polling and reply with the video."""
+    result = await predict_video_bytes(ctx, model, model_input, status_msg, label)
+    if result is None:
+        return
+    content, url = result
+    video_data = BytesIO(content)
     if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
         await status_msg.edit(content=f"❌ File too large for Discord. URL:\n{url}")
         return
@@ -132,7 +263,11 @@ class Video(commands.Cog):
 
     @commands.command(name="continue")
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
-        """Continue a previous /pvid video using its last frame as the first frame.
+        """Continue a previous /pvid video and stitch it into one continuous stream.
+
+        Generates a new 8s P-Video clip seeded from the replied-to video's last
+        frame, then concatenates the previous video + new clip and re-encodes the
+        result to fit Discord's upload limit before posting.
 
         Usage: reply to a bot-generated video with /continue [optional new prompt]
         If no prompt is supplied, reuses the original /pvid prompt.
@@ -189,13 +324,27 @@ class Video(commands.Cog):
                 "image": first_frame,
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
-            await run_video_model(
-                ctx,
-                "prunaai/p-video",
-                model_input,
-                status_msg,
-                "continue",
+            result = await predict_video_bytes(
+                ctx, "prunaai/p-video", model_input, status_msg, "continue"
             )
+            if result is None:
+                return
+            new_bytes, _ = result
+
+            await status_msg.edit(content="🎬 Stitching clips into one stream...")
+            try:
+                combined = await asyncio.to_thread(concat_and_fit, video_bytes, new_bytes)
+            except ValueError as e:
+                await status_msg.edit(content=f"❌ {e}")
+                return
+            video_data = BytesIO(combined)
+            if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
+                await status_msg.edit(content="❌ Combined stream too large for Discord.")
+                return
+            video_data.seek(0)
+            await status_msg.edit(content="Uploading...")
+            await ctx.reply(file=discord.File(video_data, "video.mp4"))
+            await status_msg.delete()
         except subprocess.CalledProcessError as e:
             log_error("continue", e, ctx, text)
             await status_msg.edit(
