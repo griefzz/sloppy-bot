@@ -21,6 +21,22 @@ from cogs.utils import (
 from cogs.error_log import log_error
 
 
+def _run_ffmpeg(cmd: list[str], timeout: int = 300):
+    """Run an ffmpeg command, printing the real error (tail of stderr) to the log on failure.
+
+    Raises subprocess.CalledProcessError (with stderr attached) on non-zero exit.
+    """
+    result = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        tail = "\n".join(stderr.splitlines()[-15:])
+        print(f"[ffmpeg] exit {result.returncode}:\n{tail}")
+        raise subprocess.CalledProcessError(
+            result.returncode, cmd, output=result.stdout, stderr=result.stderr
+        )
+    return result
+
+
 def extract_last_frame(video_bytes: bytes) -> bytes:
     """Extract the last frame of a video as JPEG bytes using ffmpeg."""
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as vf:
@@ -123,7 +139,9 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
             "scale=1280:720:force_original_aspect_ratio=decrease,"
             "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24"
         )
-        afmt = "aformat=sample_rates=44100:channel_layouts=stereo"
+        # Pin sample format too (not just rate/layout) so the concat filter gets
+        # identical audio params on stricter ffmpeg builds (e.g. 4.4).
+        afmt = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
 
         # Pass 1 only analyzes video, so it uses a video-only graph (no lavfi input).
         video_graph = (
@@ -135,10 +153,17 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
             "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
             "-pass", "1", "-passlogfile", log_file, "-an", "-f", "null", os.devnull,
         ]
-        subprocess.run(pass1, check=True, capture_output=True, timeout=300)
+        _run_ffmpeg(pass1)
 
-        # Pass 2 carries audio. A silent anullsrc input (index 2) backfills any
-        # segment without its own audio track, trimmed to that segment's duration.
+        # Pass 2 carries audio. Each segment keeps its own audio; a segment with no
+        # audio track is backfilled with silence from a lavfi anullsrc input, which is
+        # only added when actually needed (an unused input can break older ffmpeg).
+        need_silence = not all(auds)
+        inputs = ["ffmpeg", "-y", "-i", prev_path, "-i", new_path]
+        if need_silence:
+            inputs += ["-f", "lavfi", "-i",
+                       "anullsrc=channel_layout=stereo:sample_rate=44100"]
+
         parts = [f"[0:v]{norm}[v0]", f"[1:v]{norm}[v1]"]
         for i in range(2):
             if auds[i]:
@@ -150,16 +175,14 @@ def concat_and_fit(prev_bytes: bytes, new_bytes: bytes, target_mb: int = 25) -> 
         parts.append("[v0][a0][v1][a1]concat=n=2:v=1:a=1[outv][outa]")
         full_graph = ";".join(parts)
 
-        pass2 = [
-            "ffmpeg", "-y", "-i", prev_path, "-i", new_path,
-            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+        pass2 = inputs + [
             "-filter_complex", full_graph, "-map", "[outv]", "-map", "[outa]",
             "-c:v", "libx264", "-b:v", f"{video_kbps}k", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", f"{AUDIO_KBPS}k",
             "-pass", "2", "-passlogfile", log_file,
             "-movflags", "+faststart", out_path,
         ]
-        subprocess.run(pass2, check=True, capture_output=True, timeout=300)
+        _run_ffmpeg(pass2)
 
         with open(out_path, "rb") as f:
             return f.read()
@@ -347,9 +370,9 @@ class Video(commands.Cog):
             await status_msg.delete()
         except subprocess.CalledProcessError as e:
             log_error("continue", e, ctx, text)
-            await status_msg.edit(
-                content=f"❌ ffmpeg failed: {e.stderr.decode()[:500] if e.stderr else e}"
-            )
+            stderr = e.stderr.decode("utf-8", "replace").strip() if e.stderr else str(e)
+            tail = "\n".join(stderr.splitlines()[-12:])
+            await status_msg.edit(content=f"❌ ffmpeg failed:\n```\n{tail[-1800:]}\n```")
         except Exception as e:
             log_error("continue", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
