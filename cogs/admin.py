@@ -171,6 +171,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/krea <text>",
+            value="Generate an image using Krea 2 Medium (16:9)\n• Attach up to 10 images or reply with images to use as style references\n• Example: `/krea a knight in a painterly anime style`",
+            inline=False,
+        )
+        embed.add_field(
             name="/ideo <text>",
             value="Generate an image using Ideogram v4 Turbo (2560x1440, 16:9)\n• Example: `/ideo a surreal landscape with floating islands`",
             inline=False,
@@ -248,6 +253,7 @@ class Admin(commands.Cog):
         embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
         embed.add_field(name="/seed",    value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
         embed.add_field(name="/pvid\n/zpvid\n/continue", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/krea",    value="$0.03/image text-to-image | $0.035 with style references  — krea/krea-2-medium", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
         embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)
         await ctx.reply(embed=embed)

@@ -178,6 +178,24 @@ class Images(commands.Cog):
             }, "generated_image.jpg", "lbgrok")
 
     @commands.command()
+    async def krea(self, ctx: commands.Context, *, text: str):
+        """Generate an image using Krea 2 Medium.
+
+        Usage: /krea your image description here
+        Attach up to 10 images (or reply to a message with images) to use as
+        style references.
+        """
+        model_input = {
+            "prompt": text,
+            "aspect_ratio": "16:9",
+            "creativity": "high",
+        }
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            model_input["style_reference_images"] = await to_data_uris(attachments, embed_urls, limit=10)
+        await run_image_model(ctx, "krea/krea-2-medium", model_input, "generated_image.jpg", "krea")
+
+    @commands.command()
     async def ideo(self, ctx: commands.Context, *, text: str):
         """Generate an image using Ideogram v4 Turbo.
 
