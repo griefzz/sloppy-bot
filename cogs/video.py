@@ -451,7 +451,7 @@ class Video(commands.Cog):
                 "fps": 24,
                 "disable_safety_filter": True,
                 "prompt_upsampling": True,
-                "draft_mode": True,
+                "draft": True,
             }
             attachments, embed_urls = await get_attachments(ctx, "image/")
             if attachments:
