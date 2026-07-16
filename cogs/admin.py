@@ -201,6 +201,11 @@ class Admin(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/lpvid <text>",
+            value="Like /pvid but in draft mode (faster, lower quality)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/lpvid waves crashing on rocks`",
+            inline=False,
+        )
+        embed.add_field(
             name="/zpvid <text>",
             value="Like /pvid but with prompt_upsampling disabled (raw prompt)\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/zpvid waves crashing on rocks`",
             inline=False,
@@ -253,6 +258,7 @@ class Admin(commands.Cog):
         embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
         embed.add_field(name="/seed",    value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
         embed.add_field(name="/pvid\n/zpvid\n/continue", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/lpvid",    value="~$0.04/run  — prunaai/p-video draft mode (8s @ 720p, $0.005/s)", inline=False)
         embed.add_field(name="/krea",    value="$0.03/image text-to-image | $0.035 with style references  — krea/krea-2-medium", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
         embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)

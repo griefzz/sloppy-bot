@@ -432,6 +432,42 @@ class Video(commands.Cog):
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
     @commands.command()
+    async def lpvid(self, ctx: commands.Context, *, text: str):
+        """Generate a video using P-Video in draft mode (faster, lower quality).
+
+        Usage: /lpvid prompt (text-to-video)
+        Usage: /lpvid prompt + 1 image (image-to-video, first frame)
+        Usage: /lpvid prompt + 2 images (first + last frame)
+        """
+        status_msg = await ctx.reply(
+            "Generating video in draft mode, this may take a few minutes..."
+        )
+        try:
+            model_input = {
+                "prompt": text,
+                "duration": 8,
+                "resolution": "720p",
+                "aspect_ratio": "16:9",
+                "fps": 24,
+                "disable_safety_filter": True,
+                "prompt_upsampling": True,
+                "draft_mode": True,
+            }
+            attachments, embed_urls = await get_attachments(ctx, "image/")
+            if attachments:
+                model_input["image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
+            await run_video_model(
+                ctx, "prunaai/p-video", model_input, status_msg, "lpvid"
+            )
+        except Exception as e:
+            log_error("lpvid", e, ctx, text)
+            await status_msg.edit(content=f"An error occurred: {e}")
+
+    @commands.command()
     async def zpvid(self, ctx: commands.Context, *, text: str):
         """Generate a video using P-Video with prompt_upsampling disabled.
 
