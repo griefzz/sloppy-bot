@@ -503,6 +503,44 @@ class Video(commands.Cog):
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
     @commands.command()
+    async def wan(self, ctx: commands.Context, *, text: str):
+        """Generate a video using Wan 2.2 I2V Fast (image-to-video).
+
+        Usage: /wan prompt + 1 image (first frame)
+        Usage: /wan prompt + 2 images (first + last frame)
+        Requires an image: attach one or reply to a message with one.
+        """
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if not attachments and not embed_urls:
+            await ctx.reply(
+                "❌ /wan is image-to-video: attach an image or reply to a message with one."
+            )
+            return
+        status_msg = await ctx.reply(
+            "🎬 Generating video, this may take a few minutes..."
+        )
+        try:
+            model_input = {
+                "prompt": text,
+                "resolution": "480p",
+                "num_frames": 81,
+                "frames_per_second": 16,
+                "disable_safety_checker": True,
+            }
+            if attachments:
+                model_input["image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_image"] = await attachment_to_data_uri(attachments[1])
+            await run_video_model(
+                ctx, "wan-video/wan-2.2-i2v-fast", model_input, status_msg, "wan"
+            )
+        except Exception as e:
+            log_error("wan", e, ctx, text)
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+
+    @commands.command()
     async def mmaudio(self, ctx: commands.Context, *, text: str = ""):
         """Generate audio using MMAudio.
 
