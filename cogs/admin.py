@@ -152,7 +152,12 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/nana <text>",
-            value="Generate an image using Google Nano Banana (Gemini Flash)\n• Attach or reply with images for reference\n• Example: `/nana a tropical sunset`",
+            value="Generate an image using Nano Banana 2 Lite\n• Attach up to 14 images or reply with images for reference\n• Example: `/nana a tropical sunset`",
+            inline=False,
+        )
+        embed.add_field(
+            name="/bnana <text>",
+            value="Generate an image using Nano Banana 2 (full quality, Google/image search grounding on)\n• Attach up to 14 images or reply with images for reference\n• Example: `/bnana a tropical sunset`",
             inline=False,
         )
         embed.add_field(
@@ -250,7 +255,8 @@ class Admin(commands.Cog):
         embed.add_field(name="/grok",    value="~$0.02  — xai/grok-imagine-image (2k, 16:9)", inline=False)
         embed.add_field(name="/lbgrok",  value="~$0.05 text-to-image | +$0.01 per input image  — xai/grok-imagine-image-quality (1k)", inline=False)
         embed.add_field(name="/flux2",   value="$0.002/input MP + $0.015/output MP  — black-forest-labs/flux-2-klein-9b\nText-to-image (1MP out): ~$0.015 | Image-to-image: +$0.002/input MP per image (up to 5)", inline=False)
-        embed.add_field(name="/nana",    value="~$0.04  — google/nano-banana", inline=False)
+        embed.add_field(name="/nana",    value="~$0.034/image  — google/nano-banana-2-lite", inline=False)
+        embed.add_field(name="/bnana",   value="$0.067 (1K) | $0.101 (2K) | $0.151 (4K) per image  — google/nano-banana-2", inline=False)
         embed.add_field(name="/pimg",    value="~$0.005 text-to-image (prunaai/p-image) | ~$0.01 with images (prunaai/p-image-edit)", inline=False)
         embed.add_field(name="/qwen",    value="~$0.025 text-to-image (qwen/qwen-image) | ~$0.03 with images (qwen/qwen-image-edit-plus)", inline=False)
         embed.add_field(name="/zimg",    value="~$0.02  — prunaai/z-image-turbo (1920×1088, ~2MP output)", inline=False)
