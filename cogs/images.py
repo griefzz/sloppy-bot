@@ -52,10 +52,10 @@ class Images(commands.Cog):
 
     @commands.command()
     async def nana(self, ctx: commands.Context, *, text: str):
-        """Generate an image using Google Nano Banana (Gemini Flash).
+        """Generate an image using Nano Banana 2 Lite.
 
         Usage: /nana your image description here
-        Attach images to use as reference input, or reply to a message with images.
+        Attach up to 14 images to use as reference input, or reply to a message with images.
         """
         model_input = {
             "prompt": text,
@@ -64,8 +64,28 @@ class Images(commands.Cog):
         }
         attachments, embed_urls = await get_attachments(ctx, "image/")
         if attachments or embed_urls:
-            model_input["image_input"] = await to_data_uris(attachments, embed_urls)
-        await run_image_model(ctx, "google/nano-banana", model_input, "generated_image.jpg", "nana")
+            model_input["image_input"] = await to_data_uris(attachments, embed_urls, limit=14)
+        await run_image_model(ctx, "google/nano-banana-2-lite", model_input, "generated_image.jpg", "nana")
+
+    @commands.command()
+    async def bnana(self, ctx: commands.Context, *, text: str):
+        """Generate an image using Nano Banana 2 (full quality).
+
+        Usage: /bnana your image description here
+        Attach up to 14 images to use as reference input, or reply to a message with images.
+        """
+        model_input = {
+            "prompt": text,
+            "aspect_ratio": "16:9",
+            "resolution": "1K",
+            "output_format": "jpg",
+            "google_search": True,
+            "image_search": True,
+        }
+        attachments, embed_urls = await get_attachments(ctx, "image/")
+        if attachments or embed_urls:
+            model_input["image_input"] = await to_data_uris(attachments, embed_urls, limit=14)
+        await run_image_model(ctx, "google/nano-banana-2", model_input, "generated_image.jpg", "bnana")
 
     @commands.command()
     async def pimg(self, ctx: commands.Context, *, text: str):
