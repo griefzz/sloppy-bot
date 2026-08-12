@@ -541,6 +541,40 @@ class Video(commands.Cog):
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
     @commands.command()
+    async def ltx(self, ctx: commands.Context, *, text: str):
+        """Generate a video using LTX 2.5 Fast (6s @ 720p, with audio).
+
+        Usage: /ltx prompt (text-to-video)
+        Usage: /ltx prompt + 1 image (image-to-video, first frame)
+        Usage: /ltx prompt + 2 images (interpolates first -> last frame)
+        """
+        status_msg = await ctx.reply(
+            "🎬 Generating video, this may take a few minutes..."
+        )
+        try:
+            model_input = {
+                "prompt": text,
+                "duration": 6,
+                "resolution": "720p",
+                "aspect_ratio": "16:9",
+                "fps": 25,
+                "generate_audio": True,
+            }
+            attachments, embed_urls = await get_attachments(ctx, "image/")
+            if attachments:
+                model_input["image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
+            await run_video_model(
+                ctx, "lightricks/ltx-2.5-fast", model_input, status_msg, "ltx"
+            )
+        except Exception as e:
+            log_error("ltx", e, ctx, text)
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+
+    @commands.command()
     async def mmaudio(self, ctx: commands.Context, *, text: str = ""):
         """Generate audio using MMAudio.
 
