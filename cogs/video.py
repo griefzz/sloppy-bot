@@ -305,17 +305,18 @@ class Video(commands.Cog):
 
     @commands.command(name="continue")
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
-        """Continue a previous /pvid video and stitch it into one continuous stream.
+        """Continue a previous video and stitch it into one continuous stream.
 
-        Generates a new 8s P-Video clip seeded from the replied-to video's last
-        frame, then concatenates the previous video + new clip and re-encodes the
-        result to fit Discord's upload limit before posting.
+        Generates a new 8s P-Video clip in draft mode (same as /lpvid) seeded from
+        the replied-to video's last frame, then concatenates the previous video +
+        new clip and re-encodes the result to fit Discord's upload limit before
+        posting.
 
         Usage: reply to a bot-generated video with /continue [optional new prompt]
-        If no prompt is supplied, reuses the original /pvid prompt.
+        If no prompt is supplied, reuses the original prompt.
         """
         if not ctx.message.reference:
-            await ctx.reply("❌ Reply to a /pvid video with /continue.")
+            await ctx.reply("❌ Reply to a bot video with /continue.")
             return
         status_msg = await ctx.reply(
             "🎬 Continuing video, this may take a few minutes..."
@@ -343,7 +344,7 @@ class Video(commands.Cog):
                         ref_msg.reference.message_id
                     )
                     content = original.content.strip()
-                    for prefix in ("/pvid ", "/zpvid ", "/seed ", "/continue "):
+                    for prefix in ("/lpvid ", "/pvid ", "/zpvid ", "/seed ", "/continue "):
                         if content.startswith(prefix):
                             prompt = content[len(prefix) :].strip()
                             break
@@ -363,6 +364,7 @@ class Video(commands.Cog):
                 "fps": 24,
                 "disable_safety_filter": True,
                 "prompt_upsampling": True,
+                "draft": True,
                 "image": first_frame,
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")

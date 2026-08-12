@@ -227,7 +227,7 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/continue [text]",
-            value="Continue a /pvid video using its last frame\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
+            value="Continue a video and stitch it into one continuous stream (draft mode, same as /lpvid)\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
             inline=False,
         )
         embed.add_field(
@@ -273,10 +273,10 @@ class Admin(commands.Cog):
         embed.add_field(name="/blip",    value="~$0.00022  — salesforce/blip", inline=False)
         embed.add_field(name="/caption", value="~$0.0017  — lucataco/moondream2", inline=False)
         embed.add_field(name="/seed",    value="~$0.075/run  — bytedance/seedance-1-pro-fast (5s @ 480p, $0.015/s)", inline=False)
-        embed.add_field(name="/pvid\n/zpvid\n/continue", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
+        embed.add_field(name="/pvid\n/zpvid", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
         embed.add_field(name="/wan",     value="$0.05/video @ 480p  — wan-video/wan-2.2-i2v-fast (81 frames @ 16fps ≈ 5s)", inline=False)
         embed.add_field(name="/ltx",     value="~$0.18/run  — lightricks/ltx-2.5-fast (6s @ 720p, $0.03/s)", inline=False)
-        embed.add_field(name="/lpvid",    value="~$0.04/run  — prunaai/p-video draft mode (8s @ 720p, $0.005/s)", inline=False)
+        embed.add_field(name="/lpvid\n/continue", value="~$0.04/run  — prunaai/p-video draft mode (8s @ 720p, $0.005/s)", inline=False)
         embed.add_field(name="/krea",    value="$0.03/image text-to-image | $0.035 with style references  — krea/krea-2-medium", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
         embed.add_field(name="/mmaudio", value="~$0.0053  — zsxkib/mmaudio", inline=False)
