@@ -639,7 +639,7 @@ class Video(commands.Cog):
             arguments = {
                 "prompt": text,
                 "prompt_expansion_mode": "balanced",
-                "duration": 6,
+                "duration": 8,
                 "resolution": "480P",
                 "enable_safety_checker": False,
             }
