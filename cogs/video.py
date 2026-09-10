@@ -640,7 +640,7 @@ class Video(commands.Cog):
                 "prompt": text,
                 "prompt_expansion_mode": "balanced",
                 "duration": 6,
-                "resolution": "768P",
+                "resolution": "480P",
                 "enable_safety_checker": False,
             }
             attachments, embed_urls = await get_attachments(ctx, "image/")

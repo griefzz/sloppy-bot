@@ -227,7 +227,7 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/h3 <text>",
-            value="Generate a video using MiniMax H3 Max Turbo via fal.ai (6s @ 768P)\n• No attachment: text-to-video\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/h3 a hawk diving through canyon mist`",
+            value="Generate a video using MiniMax H3 Max Turbo via fal.ai (6s @ 480P)\n• No attachment: text-to-video\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/h3 a hawk diving through canyon mist`",
             inline=False,
         )
         embed.add_field(
@@ -281,7 +281,7 @@ class Admin(commands.Cog):
         embed.add_field(name="/pvid\n/zpvid", value="~$0.16/run  — prunaai/p-video (8s @ 720p, $0.02/s)", inline=False)
         embed.add_field(name="/wan",     value="$0.05/video @ 480p  — wan-video/wan-2.2-i2v-fast (81 frames @ 16fps ≈ 5s)", inline=False)
         embed.add_field(name="/ltx",     value="~$0.18/run  — lightricks/ltx-2.5-fast (6s @ 720p, $0.03/s)", inline=False)
-        embed.add_field(name="/h3",      value="~$0.24/run  — minimax/h3-max-turbo via fal.ai (6s @ 768P, $0.04/s; launch promo $0.01/s until Sep 14)", inline=False)
+        embed.add_field(name="/h3",      value="~$0.15/run  — minimax/h3-max-turbo via fal.ai (6s @ 480P, $0.025/s; launch promo $0.00625/s until Sep 14)", inline=False)
         embed.add_field(name="/lpvid\n/continue", value="~$0.04/run  — prunaai/p-video draft mode (8s @ 720p, $0.005/s)", inline=False)
         embed.add_field(name="/krea",    value="$0.03/image text-to-image | $0.035 with style references  — krea/krea-2-medium", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)
