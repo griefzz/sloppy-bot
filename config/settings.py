@@ -11,6 +11,9 @@ class Settings:
     def __init__(self):
         self.discord_token = os.getenv("DISCORD_BOT_TOKEN")
         self.replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
+        # fal.ai: FAL_KEY is the name fal_client reads by default;
+        # FAL_API_KEY accepted as a fallback.
+        self.fal_key = os.getenv("FAL_KEY") or os.getenv("FAL_API_KEY")
         self.command_prefix = os.getenv("COMMAND_PREFIX", "/")
 
     @property

@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 import discord
+import fal_client
 import replicate
 import requests
 from discord.ext import commands
@@ -19,6 +20,7 @@ from cogs.utils import (
     poll_prediction,
 )
 from cogs.error_log import log_error
+from config.settings import settings
 
 
 def _run_ffmpeg(cmd: list[str], timeout: int = 300):
@@ -256,6 +258,52 @@ async def run_video_model(
     content, url = result
     video_data = BytesIO(content)
     if video_data.getbuffer().nbytes > 25 * 1024 * 1024:
+        await status_msg.edit(content=f"❌ File too large for Discord. URL:\n{url}")
+        return
+    video_data.seek(0)
+    await status_msg.edit(content="Uploading...")
+    await ctx.reply(file=discord.File(video_data, "video.mp4"))
+    await status_msg.delete()
+
+
+async def run_fal_video(
+    ctx: commands.Context, endpoint: str, arguments: dict, status_msg, label: str
+):
+    """Submit a fal.ai queue job, poll until complete, and reply with the video."""
+    if not settings.fal_key:
+        await status_msg.edit(
+            content="❌ FAL_KEY is not set. Add it to .env to use fal.ai commands."
+        )
+        return
+    handle = await asyncio.to_thread(fal_client.submit, endpoint, arguments=arguments)
+    print(f"[{label}] fal request submitted: {handle.request_id}")
+
+    elapsed = 0
+    while True:
+        status = await asyncio.to_thread(handle.status)
+        if isinstance(status, fal_client.Completed):
+            break
+        state = type(status).__name__
+        print(f"[{label}] {elapsed}s - status: {state}")
+        await status_msg.edit(
+            content=f"🎬 Generating... ({elapsed}s, status: {state})"
+        )
+        if elapsed >= 900:
+            await status_msg.edit(content="❌ Timed out waiting for fal.ai.")
+            return
+        await asyncio.sleep(5)
+        elapsed += 5
+
+    result = await asyncio.to_thread(handle.get)
+    url = (result.get("video") or {}).get("url")
+    if not url:
+        await status_msg.edit(content=f"❌ No video returned: {str(result)[:300]}")
+        return
+
+    await status_msg.edit(content="Downloading...")
+    response = await asyncio.to_thread(requests.get, url, timeout=(10, 120))
+    video_data = BytesIO(response.content)
+    if video_data.getbuffer().nbytes > 10 * 1024 * 1024:
         await status_msg.edit(content=f"❌ File too large for Discord. URL:\n{url}")
         return
     video_data.seek(0)
@@ -574,6 +622,42 @@ class Video(commands.Cog):
             )
         except Exception as e:
             log_error("ltx", e, ctx, text)
+            await status_msg.edit(content=f"❌ An error occurred: {e}")
+
+    @commands.command()
+    async def h3(self, ctx: commands.Context, *, text: str):
+        """Generate a video using MiniMax H3 Max Turbo via fal.ai.
+
+        Usage: /h3 prompt (text-to-video)
+        Usage: /h3 prompt + 1 image (image-to-video, first frame)
+        Usage: /h3 prompt + 2 images (first + last frame)
+        """
+        status_msg = await ctx.reply(
+            "🎬 Generating video, this may take a few minutes..."
+        )
+        try:
+            arguments = {
+                "prompt": text,
+                "prompt_expansion_mode": "balanced",
+                "duration": 6,
+                "resolution": "768P",
+                "enable_safety_checker": False,
+            }
+            attachments, embed_urls = await get_attachments(ctx, "image/")
+            if attachments or embed_urls:
+                # fal takes image URLs directly; Discord CDN links are public.
+                endpoint = "minimax/h3-max-turbo/image-to-video"
+                arguments["image_url"] = (
+                    attachments[0].url if attachments else embed_urls[0]
+                )
+                if len(attachments) >= 2:
+                    arguments["end_image_url"] = attachments[1].url
+            else:
+                endpoint = "minimax/h3-max-turbo/text-to-video"
+                arguments["aspect_ratio"] = "16:9"
+            await run_fal_video(ctx, endpoint, arguments, status_msg, "h3")
+        except Exception as e:
+            log_error("h3", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
 
     @commands.command()
