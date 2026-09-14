@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import glob
 import os
 import subprocess
@@ -266,15 +265,18 @@ async def run_video_model(
     await status_msg.delete()
 
 
-async def run_fal_video(
+async def predict_fal_video_bytes(
     ctx: commands.Context, endpoint: str, arguments: dict, status_msg, label: str
 ):
-    """Submit a fal.ai queue job, poll until complete, and reply with the video."""
+    """Submit a fal.ai queue job, poll until complete, and return (video_bytes, url).
+
+    Returns None on failure (status_msg already updated with the reason).
+    """
     if not settings.fal_key:
         await status_msg.edit(
             content="❌ FAL_KEY is not set. Add it to .env to use fal.ai commands."
         )
-        return
+        return None
     handle = await asyncio.to_thread(fal_client.submit, endpoint, arguments=arguments)
     print(f"[{label}] fal request submitted: {handle.request_id}")
 
@@ -290,7 +292,7 @@ async def run_fal_video(
         )
         if elapsed >= 900:
             await status_msg.edit(content="❌ Timed out waiting for fal.ai.")
-            return
+            return None
         await asyncio.sleep(5)
         elapsed += 5
 
@@ -298,13 +300,24 @@ async def run_fal_video(
     url = (result.get("video") or {}).get("url")
     if not url:
         await status_msg.edit(content=f"❌ No video returned: {str(result)[:300]}")
-        return
+        return None
 
     await status_msg.edit(content="Downloading...")
     response = await asyncio.to_thread(requests.get, url, timeout=(10, 120))
-    video_data = BytesIO(response.content)
+    return response.content, url
+
+
+async def run_fal_video(
+    ctx: commands.Context, endpoint: str, arguments: dict, status_msg, label: str
+):
+    """Submit a fal.ai queue job, poll until complete, and reply with the video."""
+    result = await predict_fal_video_bytes(ctx, endpoint, arguments, status_msg, label)
+    if result is None:
+        return
+    content, url = result
+    video_data = BytesIO(content)
     if video_data.getbuffer().nbytes > 10 * 1024 * 1024:
-        await status_msg.edit(content=f"❌ File too large for Discord. URL:\n{url}")
+        await status_msg.edit(content=f"❌ File too large for Discord. URL:" + chr(10) + url)
         return
     video_data.seek(0)
     await status_msg.edit(content="Uploading...")
@@ -355,7 +368,7 @@ class Video(commands.Cog):
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
         """Continue a previous video and stitch it into one continuous stream.
 
-        Generates a new 8s P-Video 2 clip in draft mode (same as /lpvid) seeded from
+        Generates a new 8s MiniMax H3 Max Turbo clip (same as /h3, via fal.ai) seeded from
         the replied-to video's last frame, then concatenates the previous video +
         new clip and re-encodes the result to fit Discord's upload limit before
         posting.
@@ -382,8 +395,10 @@ class Video(commands.Cog):
             await status_msg.edit(content="🎬 Extracting last frame...")
             video_bytes = await video_attachments[0].read()
             frame_bytes = await asyncio.to_thread(extract_last_frame, video_bytes)
-            b64 = base64.b64encode(frame_bytes).decode("utf-8")
-            first_frame = f"data:image/jpeg;base64,{b64}"
+            # H3 takes an image URL, so host the frame on fal storage.
+            frame_url = await asyncio.to_thread(
+                fal_client.upload, frame_bytes, "image/jpeg", "last_frame.jpg"
+            )
 
             prompt = text.strip()
             if not prompt and ref_msg.reference:
@@ -392,7 +407,7 @@ class Video(commands.Cog):
                         ref_msg.reference.message_id
                     )
                     content = original.content.strip()
-                    for prefix in ("/lpvid ", "/pvid ", "/zpvid ", "/seed ", "/continue "):
+                    for prefix in ("/h3 ", "/lpvid ", "/pvid ", "/zpvid ", "/seed ", "/continue "):
                         if content.startswith(prefix):
                             prompt = content[len(prefix) :].strip()
                             break
@@ -404,20 +419,17 @@ class Video(commands.Cog):
                 )
                 return
 
-            model_input = {
+            arguments = {
                 "prompt": prompt,
+                "prompt_expansion_mode": "balanced",
                 "duration": 8,
-                "resolution": "720p",
-                "aspect_ratio": "16:9",
-                "fps": 24,
-                "disable_safety_filter": True,
-                "prompt_upsampling": True,
-                "draft": True,
-                "image": first_frame,
+                "resolution": "480P",
+                "enable_safety_checker": False,
+                "image_url": frame_url,
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
-            result = await predict_video_bytes(
-                ctx, "prunaai/p-video-2", model_input, status_msg, "continue"
+            result = await predict_fal_video_bytes(
+                ctx, "minimax/h3-max-turbo/image-to-video", arguments, status_msg, "continue"
             )
             if result is None:
                 return
