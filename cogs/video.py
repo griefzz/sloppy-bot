@@ -355,7 +355,7 @@ class Video(commands.Cog):
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
         """Continue a previous video and stitch it into one continuous stream.
 
-        Generates a new 8s P-Video clip in draft mode (same as /lpvid) seeded from
+        Generates a new 8s P-Video 2 clip in draft mode (same as /lpvid) seeded from
         the replied-to video's last frame, then concatenates the previous video +
         new clip and re-encodes the result to fit Discord's upload limit before
         posting.
@@ -417,7 +417,7 @@ class Video(commands.Cog):
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
             result = await predict_video_bytes(
-                ctx, "prunaai/p-video", model_input, status_msg, "continue"
+                ctx, "prunaai/p-video-2", model_input, status_msg, "continue"
             )
             if result is None:
                 return
@@ -448,7 +448,7 @@ class Video(commands.Cog):
 
     @commands.command()
     async def pvid(self, ctx: commands.Context, *, text: str):
-        """Generate a video using P-Video (prunaai/p-video).
+        """Generate a video using P-Video 2 (prunaai/p-video-2).
 
         Usage: /pvid prompt (text-to-video)
         Usage: /pvid prompt + 1 image (image-to-video, first frame)
@@ -475,7 +475,7 @@ class Video(commands.Cog):
             if len(attachments) >= 2:
                 model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             await run_video_model(
-                ctx, "prunaai/p-video", model_input, status_msg, "pvid"
+                ctx, "prunaai/p-video-2", model_input, status_msg, "pvid"
             )
         except Exception as e:
             log_error("pvid", e, ctx, text)
@@ -483,7 +483,7 @@ class Video(commands.Cog):
 
     @commands.command()
     async def lpvid(self, ctx: commands.Context, *, text: str):
-        """Generate a video using P-Video in draft mode (faster, lower quality).
+        """Generate a video using P-Video 2 in draft mode (faster, lower quality).
 
         Usage: /lpvid prompt (text-to-video)
         Usage: /lpvid prompt + 1 image (image-to-video, first frame)
@@ -511,7 +511,7 @@ class Video(commands.Cog):
             if len(attachments) >= 2:
                 model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             await run_video_model(
-                ctx, "prunaai/p-video", model_input, status_msg, "lpvid"
+                ctx, "prunaai/p-video-2", model_input, status_msg, "lpvid"
             )
         except Exception as e:
             log_error("lpvid", e, ctx, text)
@@ -519,7 +519,7 @@ class Video(commands.Cog):
 
     @commands.command()
     async def zpvid(self, ctx: commands.Context, *, text: str):
-        """Generate a video using P-Video with prompt_upsampling disabled.
+        """Generate a video using P-Video 2 with prompt_upsampling disabled.
 
         Usage: /zpvid prompt (text-to-video, raw prompt, no auto-enhance)
         Usage: /zpvid prompt + 1 image (image-to-video, first frame)
@@ -546,7 +546,7 @@ class Video(commands.Cog):
             if len(attachments) >= 2:
                 model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
             await run_video_model(
-                ctx, "prunaai/p-video", model_input, status_msg, "zpvid"
+                ctx, "prunaai/p-video-2", model_input, status_msg, "zpvid"
             )
         except Exception as e:
             log_error("zpvid", e, ctx, text)
