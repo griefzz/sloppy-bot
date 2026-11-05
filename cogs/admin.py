@@ -227,12 +227,12 @@ class Admin(commands.Cog):
         )
         embed.add_field(
             name="/h3 <text>",
-            value="Generate a video using MiniMax H3 Max Turbo via fal.ai (8s @ 480P)\n• No attachment: text-to-video\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/h3 a hawk diving through canyon mist`",
+            value="Generate a video using MiniMax H3 Lite (8s @ 480P)\n• No attachment: text-to-video\n• Attach 1 image for first frame, 2 for first+last\n• Example: `/h3 a hawk diving through canyon mist`",
             inline=False,
         )
         embed.add_field(
             name="/continue [text]",
-            value="Continue a video and stitch it into one continuous stream (MiniMax H3 via fal.ai, same as /h3)\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
+            value="Continue a video and stitch it into one continuous stream (MiniMax H3 Lite, same as /h3)\n• Reply to a bot video with `/continue` (reuses original prompt)\n• Or `/continue new prompt` to steer the continuation",
             inline=False,
         )
         embed.add_field(
@@ -281,7 +281,7 @@ class Admin(commands.Cog):
         embed.add_field(name="/pvid\n/zpvid", value="~$0.24/run  — prunaai/p-video-2 (8s @ 720p, $0.03/s)", inline=False)
         embed.add_field(name="/wan",     value="$0.05/video @ 480p  — wan-video/wan-2.2-i2v-fast (81 frames @ 16fps ≈ 5s)", inline=False)
         embed.add_field(name="/ltx",     value="~$0.18/run  — lightricks/ltx-2.5-fast (6s @ 720p, $0.03/s)", inline=False)
-        embed.add_field(name="/h3\n/continue", value="~$0.20/run  — minimax/h3-max-turbo via fal.ai (8s @ 480P, $0.025/s; launch promo $0.00625/s until Sep 14)", inline=False)
+        embed.add_field(name="/h3\n/continue", value="~$0.10/run  — minimax/h3-lite (8s @ 480P, $0.0125/s)", inline=False)
         embed.add_field(name="/lpvid",   value="~$0.12/run  — prunaai/p-video-2 draft mode (8s @ 720p, $0.015/s)", inline=False)
         embed.add_field(name="/krea",    value="$0.03/image text-to-image | $0.035 with style references  — krea/krea-2-medium", inline=False)
         embed.add_field(name="/ideo",    value="$0.03/image  — ideogram-ai/ideogram-v4-turbo (2560x1440)", inline=False)

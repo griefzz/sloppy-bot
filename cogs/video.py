@@ -1,11 +1,11 @@
 import asyncio
+import base64
 import glob
 import os
 import subprocess
 import tempfile
 
 import discord
-import fal_client
 import replicate
 import requests
 from discord.ext import commands
@@ -19,7 +19,6 @@ from cogs.utils import (
     poll_prediction,
 )
 from cogs.error_log import log_error
-from config.settings import settings
 
 
 def _run_ffmpeg(cmd: list[str], timeout: int = 300):
@@ -265,66 +264,6 @@ async def run_video_model(
     await status_msg.delete()
 
 
-async def predict_fal_video_bytes(
-    ctx: commands.Context, endpoint: str, arguments: dict, status_msg, label: str
-):
-    """Submit a fal.ai queue job, poll until complete, and return (video_bytes, url).
-
-    Returns None on failure (status_msg already updated with the reason).
-    """
-    if not settings.fal_key:
-        await status_msg.edit(
-            content="❌ FAL_KEY is not set. Add it to .env to use fal.ai commands."
-        )
-        return None
-    handle = await asyncio.to_thread(fal_client.submit, endpoint, arguments=arguments)
-    print(f"[{label}] fal request submitted: {handle.request_id}")
-
-    elapsed = 0
-    while True:
-        status = await asyncio.to_thread(handle.status)
-        if isinstance(status, fal_client.Completed):
-            break
-        state = type(status).__name__
-        print(f"[{label}] {elapsed}s - status: {state}")
-        await status_msg.edit(
-            content=f"🎬 Generating... ({elapsed}s, status: {state})"
-        )
-        if elapsed >= 900:
-            await status_msg.edit(content="❌ Timed out waiting for fal.ai.")
-            return None
-        await asyncio.sleep(5)
-        elapsed += 5
-
-    result = await asyncio.to_thread(handle.get)
-    url = (result.get("video") or {}).get("url")
-    if not url:
-        await status_msg.edit(content=f"❌ No video returned: {str(result)[:300]}")
-        return None
-
-    await status_msg.edit(content="Downloading...")
-    response = await asyncio.to_thread(requests.get, url, timeout=(10, 120))
-    return response.content, url
-
-
-async def run_fal_video(
-    ctx: commands.Context, endpoint: str, arguments: dict, status_msg, label: str
-):
-    """Submit a fal.ai queue job, poll until complete, and reply with the video."""
-    result = await predict_fal_video_bytes(ctx, endpoint, arguments, status_msg, label)
-    if result is None:
-        return
-    content, url = result
-    video_data = BytesIO(content)
-    if video_data.getbuffer().nbytes > 10 * 1024 * 1024:
-        await status_msg.edit(content=f"❌ File too large for Discord. URL:" + chr(10) + url)
-        return
-    video_data.seek(0)
-    await status_msg.edit(content="Uploading...")
-    await ctx.reply(file=discord.File(video_data, "video.mp4"))
-    await status_msg.delete()
-
-
 class Video(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -368,7 +307,7 @@ class Video(commands.Cog):
     async def continue_(self, ctx: commands.Context, *, text: str = ""):
         """Continue a previous video and stitch it into one continuous stream.
 
-        Generates a new 8s MiniMax H3 Max Turbo clip (same as /h3, via fal.ai) seeded from
+        Generates a new 8s MiniMax H3 Lite clip (same as /h3) seeded from
         the replied-to video's last frame, then concatenates the previous video +
         new clip and re-encodes the result to fit Discord's upload limit before
         posting.
@@ -395,10 +334,7 @@ class Video(commands.Cog):
             await status_msg.edit(content="🎬 Extracting last frame...")
             video_bytes = await video_attachments[0].read()
             frame_bytes = await asyncio.to_thread(extract_last_frame, video_bytes)
-            # H3 takes an image URL, so host the frame on fal storage.
-            frame_url = await asyncio.to_thread(
-                fal_client.upload, frame_bytes, "image/jpeg", "last_frame.jpg"
-            )
+            frame_b64 = base64.b64encode(frame_bytes).decode("utf-8")
 
             prompt = text.strip()
             if not prompt and ref_msg.reference:
@@ -419,17 +355,15 @@ class Video(commands.Cog):
                 )
                 return
 
-            arguments = {
+            model_input = {
                 "prompt": prompt,
-                "prompt_expansion_mode": "balanced",
                 "duration": 8,
                 "resolution": "480P",
-                "enable_safety_checker": False,
-                "image_url": frame_url,
+                "first_frame_image": f"data:image/jpeg;base64,{frame_b64}",
             }
             await status_msg.edit(content=f"🎬 Continuing with prompt: {prompt[:100]}")
-            result = await predict_fal_video_bytes(
-                ctx, "minimax/h3-max-turbo/image-to-video", arguments, status_msg, "continue"
+            result = await predict_video_bytes(
+                ctx, "minimax/h3-lite", model_input, status_msg, "continue"
             )
             if result is None:
                 return
@@ -638,7 +572,7 @@ class Video(commands.Cog):
 
     @commands.command()
     async def h3(self, ctx: commands.Context, *, text: str):
-        """Generate a video using MiniMax H3 Max Turbo via fal.ai.
+        """Generate a video using MiniMax H3 Lite (minimax/h3-lite).
 
         Usage: /h3 prompt (text-to-video)
         Usage: /h3 prompt + 1 image (image-to-video, first frame)
@@ -648,26 +582,22 @@ class Video(commands.Cog):
             "🎬 Generating video, this may take a few minutes..."
         )
         try:
-            arguments = {
+            model_input = {
                 "prompt": text,
-                "prompt_expansion_mode": "balanced",
                 "duration": 8,
                 "resolution": "480P",
-                "enable_safety_checker": False,
+                "ratio": "16:9",
             }
             attachments, embed_urls = await get_attachments(ctx, "image/")
-            if attachments or embed_urls:
-                # fal takes image URLs directly; Discord CDN links are public.
-                endpoint = "minimax/h3-max-turbo/image-to-video"
-                arguments["image_url"] = (
-                    attachments[0].url if attachments else embed_urls[0]
-                )
-                if len(attachments) >= 2:
-                    arguments["end_image_url"] = attachments[1].url
-            else:
-                endpoint = "minimax/h3-max-turbo/text-to-video"
-                arguments["aspect_ratio"] = "16:9"
-            await run_fal_video(ctx, endpoint, arguments, status_msg, "h3")
+            if attachments:
+                model_input["first_frame_image"] = await attachment_to_data_uri(attachments[0])
+            elif embed_urls:
+                model_input["first_frame_image"] = url_to_data_uri(embed_urls[0])
+            if len(attachments) >= 2:
+                model_input["last_frame_image"] = await attachment_to_data_uri(attachments[1])
+            await run_video_model(
+                ctx, "minimax/h3-lite", model_input, status_msg, "h3"
+            )
         except Exception as e:
             log_error("h3", e, ctx, text)
             await status_msg.edit(content=f"❌ An error occurred: {e}")
