@@ -6,6 +6,24 @@ import replicate
 import requests
 from discord.ext import commands
 from io import BytesIO
+from replicate.prediction import Prediction
+
+
+def _allow_null_prediction_version():
+    """Let the replicate client accept predictions whose `version` is null.
+
+    Replicate's API sometimes replies to a create call with `"version": null` (seen
+    with google/nano-banana-2-lite), but replicate 1.0.7 declares the field as a
+    required string, so the call raises a ValidationError even though the prediction
+    ran and was billed. The bot never reads `version`, so let it be None.
+    """
+    field = getattr(Prediction, "__fields__", {}).get("version")
+    if field is not None:
+        field.required = False
+        field.allow_none = True
+
+
+_allow_null_prediction_version()
 
 
 async def get_attachments(ctx: commands.Context, media_type: str = "image/") -> tuple[list, list]:
