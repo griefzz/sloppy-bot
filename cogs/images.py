@@ -52,7 +52,7 @@ class Images(commands.Cog):
 
     @commands.command()
     async def nana(self, ctx: commands.Context, *, text: str):
-        """Generate an image using Nano Banana 2 Lite.
+        """Generate an image using Nano Banana 2.1 at 1K.
 
         Usage: /nana your image description here
         Attach up to 14 images to use as reference input, or reply to a message with images.
@@ -60,12 +60,13 @@ class Images(commands.Cog):
         model_input = {
             "prompt": text,
             "aspect_ratio": "16:9",
+            "resolution": "1K",
             "output_format": "jpg",
         }
         attachments, embed_urls = await get_attachments(ctx, "image/")
         if attachments or embed_urls:
             model_input["image_input"] = await to_data_uris(attachments, embed_urls, limit=14)
-        await run_image_model(ctx, "google/nano-banana-2-lite", model_input, "generated_image.jpg", "nana")
+        await run_image_model(ctx, "google/nano-banana-2.1", model_input, "generated_image.jpg", "nana")
 
     @commands.command()
     async def bnana(self, ctx: commands.Context, *, text: str):
